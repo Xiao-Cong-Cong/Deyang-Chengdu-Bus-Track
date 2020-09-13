@@ -2,8 +2,10 @@
     <head>
         <meta charset="UTF-8">
         <title>DeYang-Chengdu Metro bus track</title>
-        <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
 		<script src="https://webapi.amap.com/maps?v=1.4.15&key=74ad0628ee4b58175f67dc5068bb8b5a"></script>
+		<link href="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.css" rel="stylesheet">
     </head>
     <body>
 
@@ -21,624 +23,225 @@
 		width: 750px;
 	}
 
-	.control {
+	#control {
 		margin-left: 760px;
-		height: 100%;
-	}
-
-	.control-speed {
-		width: 36px;
-	}
-
-	.control-select {
-		cursor: pointer;
-		min-width: 20px;
-		display: inline-block;
-		margin: 0 5px;
-		text-align: center;
-	}
-
-	.active {
-		background-color: greenyellow;
-	}
-
-	.missData {
-		color: red;
-	}
-
-	.control-log {
-		margin-top: 1%;
-		height: 86%;
-		width: 250px;
-		position: absolute;
-		overflow: auto;
-	}
-
-	.control-log-del {
-		color: #E8E8E8;
-		cursor: pointer;
-	}
-
-	.control-log-del:hover {
-		color: grey;
-	}
-
-	.control-log::-webkit-scrollbar,
-	.control-summary::-webkit-scrollbar {
-		width: 0 !important;
-	}
-	.control-car-power,
-	.control-summary {
-		margin-top: 2%;
-		margin-left: 270px;
-		width: calc(100vw) - 1050;
-		overflow: auto;
-	}
-
-	.control-summary-title {
-		margin: 20px 0;
-		font-weight: bold;
-		width: 80px;
-	}
-
-	.control-summary-content {
-		display: inline-block;
-		margin: 0 5px;
-		text-align: center;
-	}
-
-	.reload-icon {
-		display: inline-block;
-		position: relative;
-		height: 1.5em;
-		padding: 0.25em;
-		width: 1.5em;
-	}
-	.reload-icon:hover {
-		cursor: pointer;
-	}
-	.reload-icon, .reload-icon:before, .reload-icon:after {
-		-webkit-box-sizing: border-box;
-		-moz-box-sizing: border-box;
-		box-sizing: border-box;
-	}
-	.reload-icon:before, .reload-icon:after {
-		content: "";
-		display: block;
-	}
-	.reload-icon:before {
-		border-color: transparent black black black;
-		border-radius: 50%;
-		border-style: solid;
-		border-width: 0.15em;
-		height: 1.2em;
-		width: 1.2em;
-		-webkit-transform: rotate(45deg);
-		transform: rotate(45deg);
-	}
-	.reload-icon:after {
-		border-color: transparent transparent transparent black;
-		border-style: solid;
-		border-width: 0.3125em 0 0.3125em 0.5em;
-		height: 0;
-		position: absolute;
-		top: 0;
-		left: 50%;
-		width: 0;
 	}
 </style>
 <div id="app">
 	<div id="container"></div>
-	<div class="control">
-		<p>日期：{{formatedDay}} 星期{{weekday}}</p>
-		<p>时间：{{formatedTime}} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; x<input type="text" class="control-speed" v-model.number="playSpeed"/>
-			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="reload-icon" @click="reset"></span></p>
-		<div class="control-icon">
-			<span v-for="(item, i) in selectedName" class="control-select" :class="{active: selectedItems[i]}" @click="$set(selectedItems, i, 1 - selectedItems[i])">
-				{{item}}
-			</span>
-		</div>
-		<div class="control-log">
-			<p v-for="l in displayLog[0]">{{l.content}} <span v-if="l.del" class="control-log-del" @click="log.splice(l.logId, 1)">x</span></p>
-		</div>
-		<div class="control-summary" v-show="selectedItems[20]">
-			<!-- <p>日期：{{formatedDay}} 星期{{weekday}}</p> -->
-			<div class="control-summary-wchufa" v-show="selectedItems[13]">
-				<div class="control-summary-title">
-					文庙出发
-				</div>
-				<div class="control-summary-content" :class="{missData: !l.arrived && selectedItems[14]}" v-for="l in displayLog[1]">
-					{{l.gpsTime.slice(11,16)}}
-				</div>
-			</div>
-			<div class="control-summary-xdaoda" v-show="selectedItems[14]">
-				<div class="control-summary-title">
-					新都到达
-				</div>
-				<div class="control-summary-content" :class="{missData: !l.matched && selectedItems[13]}" v-for="l in displayLog[2]">
-					{{l.gpsTime.slice(11,16)}}
-				</div>
-			</div>
-			<div class="control-summary-w2xtime" v-show="selectedItems[13] && selectedItems[14]">
-				<div class="control-summary-title">
-					文 -> 新
-				</div>
-				<div class="control-summary-content" v-for="l in displayLog[3]">
-					{{l}}
-				</div>
-			</div>
-			<div class="control-summary-xchufa" v-show="selectedItems[16]">
-				<div class="control-summary-title">
-					新都出发
-				</div>
-				<div class="control-summary-content" :class="{missData: !l.arrived && selectedItems[17]}" v-for="l in displayLog[4]">
-					{{l.gpsTime.slice(11,16)}}
-				</div>
-			</div>
-			<div class="control-summary-wdaoda" v-show="selectedItems[17]">
-				<div class="control-summary-title">
-					文庙到达
-				</div>
-				<div class="control-summary-content" :class="{missData: !l.matched && selectedItems[16]}" v-for="l in displayLog[5]">
-					{{l.gpsTime.slice(11,16)}}
-				</div>
-			</div>
-			<div class="control-summary-x2wtime" v-show="selectedItems[16] && selectedItems[17]">
-				<div class="control-summary-title">
-					新 -> 文
-				</div>
-				<div class="control-summary-content" v-for="l in displayLog[6]">
-					{{l}}
-				</div>
-			</div>
-		</div>
-		<div class="control-car-power">
-			<table>
-				<tr>
-					<td v-for="(cp, i) in carPower">{{i+1}}</td>
-				</tr>
-				<tr>
-					<td v-for="cp in carPower">{{Math.round(cp)}}</td>
-				</tr>
-			</table>
-		</div>
+	<div id="control">
+		<v-app>
+			<v-slider
+				v-model="slider"
+				:max="maxSlider"
+				:min="minSlider"
+				hide-details
+			></v-slider>
+		</v-app>
 	</div>
 </div>
 <script>
-	var defaultfileName = '2020-09-01.json';
 	var app = new Vue({
 		el: '#app',
+		vuetify: new Vuetify(),
 		data() {
 			return {
-				selectedName: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '开始充电', '充电完成', '文庙准备', '文庙出发', '到达新都', '新都准备', '新都出发', '到达文庙', '文庙等待', '新都等待', '总结'],
-				selectedItems: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1],
-				displayLog: [],
-				log: [],
-				startTime: 0,
-				endTime: 0,
-				timer: '',
+				date: '',
 				time: 0,
-				cars: [],
+				bus: [],
+				log: [],
 				map: null,
-				marker: [],
 				points: [],
 				bounds: [],
-				playSpeed: 0,
-				carPower: [],
-				trafficLayer: null
-			}
-		},
-		computed: {
-			formatedTime() {
-				var t = new Date(this.time);
-				var h = t.getHours();
-				var m = t.getMinutes();
-				var s = t.getSeconds();
-				h = h < 10 ? '0'+h : h;
-				m = m < 10 ? '0'+m : m;
-				s = s < 10 ? '0'+s : s;
-				return h+':'+m+':'+s;
-			},
-			formatedDay() {
-				var t = new Date(this.time);
-				var y = t.getFullYear();
-				var m = t.getMonth() + 1;
-				var d = t.getDate();
-				m = m < 10 ? '0'+m : m;
-				d = d < 10 ? '0'+d : d;
-				return y+'-'+m+'-'+d;
-			},
-			weekday() {
-				var t = new Date(this.time);
-				var w = ['日', '一', '二', '三', '四', '五', '六'];
-				return w[t.getDay()];
+				rectangles: [],
+				busMarkers: [],
+				pointMarkers: [],
+				startTime: -1,
+				endTime: -1,
+				slider: 0,
+				maxSlider: 0,
+				minSlider: 0
 			}
 		},
 		watch: {
-			playSpeed() {
-				this.pauseAnimation();
-				if(this.playSpeed)
-					this.startAnimation();
-			},
-			log() { this.refreshLog() },
-			selectedItems() { this.refreshLog() }
-		},
-		methods: {
-			refreshLog() {
-				this.displayLog = [[],[],[],[],[],[],[]];
-				for(var i = 0; i < this.log.length; i++) {
-					var item = this.log[i];
-					var cph = item.carId < 10 ? '0'+item.carId : item.carId;
-					if(this.selectedItems[item.carId-1] && this.selectedItems[item.status+9]) {
-						this.displayLog[0].push({
-							logId: i,
-							del: item.del ? 1 : 0,
-							content: item.gpsTime.slice(11,19) + '\t' + cph + '号车\t' + this.selectedName[item.status+9]
-						});
-						if(item.status === 4) this.displayLog[1].push({
-							gpsTime: item.gpsTime,
-							carId: item.carId,
-							arrived: 0
-						});
-						if(item.status === 5) {
-							this.displayLog[2].push({
-								gpsTime: item.gpsTime,
-								carId: item.carId,
-								matched: 0
-							});
-							var p2 = this.displayLog[2].length - 1, p1 = -1;
-							for(var j = 0; j < this.displayLog[1].length; j++)
-								if(this.displayLog[1][j].carId === item.carId) p1 = j;
-							if(p1 !== -1 && !this.displayLog[1][p1].arrived) {
-								this.displayLog[1][p1].arrived = 1;
-								this.displayLog[2][p2].matched = 1;
-								this.displayLog[3].push(Math.round((Date.parse(this.displayLog[2][p2].gpsTime) - Date.parse(this.displayLog[1][p1].gpsTime)) / 60000));
-							}
-							for(var j = this.displayLog[1].length-1; j >= 0; j--)
-								if(this.displayLog[1][j].carId === item.carId && !this.displayLog[1][j].arrived)
-									this.displayLog[1].splice(j, 1);
-						}
-						if(item.status === 7) this.displayLog[4].push({
-							gpsTime: item.gpsTime,
-							carId: item.carId,
-							arrived: 0
-						});
-						if(item.status === 8) {
-							this.displayLog[5].push({
-								gpsTime: item.gpsTime,
-								carId: item.carId,
-								matched: 0
-							});
-							var p5 = this.displayLog[5].length - 1, p4 = -1;
-							for(var j = 0; j < this.displayLog[4].length; j++)
-								if(this.displayLog[4][j].carId === item.carId) p4 = j;
-							if(p4 !== -1 && !this.displayLog[4][p4].arrived) {
-								this.displayLog[4][p4].arrived = 1;
-								this.displayLog[5][p5].matched = 1;
-								this.displayLog[6].push(Math.round((Date.parse(this.displayLog[5][p5].gpsTime) - Date.parse(this.displayLog[4][p4].gpsTime)) / 60000));
-							}
-							for(var j = this.displayLog[4].length-1; j >= 0; j--)
-								if(this.displayLog[4][j].carId === item.carId && !this.displayLog[4][j].arrived)
-									this.displayLog[4].splice(j, 1);
-						}
-					}
+			date() { this.loadData(this.calc); },
+			time() { this.slider = Math.floor(this.time / 600); },
+			slider() {
+				if(this.slider !== Math.floor(this.time / 600)) {
+					this.time = this.slider * 600;
+					this.initDisplay();
 				}
-			},
-			loadInitData() {
-				this.log = [];
-				this.cars = [];
-				this.playSpeed = 0;
-				var request = new XMLHttpRequest();
-				var hash = location.hash.slice(1);
-				var fileName = /(20\d{2})-((0|1)\d)-((0|1|2|3)\d)/.test(hash) ? hash + '.json' : defaultfileName;
-
-				request.open("get", fileName);
-				request.send(null);
-				request.onload = () => {
-					if(request.readyState === 4 && request.status === 200) {
-						this.cars = JSON.parse(request.responseText);
-						for(var i = 0; i < this.cars.length; i++)
-							this.cars[i].p = 0;
-						this.initStartEndTime();
-						this.initMarker();
-					} else {
-						request.open("get", 'http://0n0.cc/data/' + fileName);
-						request.send(null);
-						request.onload = () => {
-							var res = request.responseText;
-							var json = JSON.parse('[' + res.slice(0, res.lastIndexOf(',')) + ']');
-							if(json !== []) {
-								this.startTime = Date.now();
-								var d = json[0].data.data;
-								var tot = d.total;
-								this.endTime = 0;
-								for(var i = 0; i < tot; i++) {
-									this.cars.push({
-										id: d.list[i].id,
-										cph: d.list[i].cph,
-										data: []
-									});
-								}
-								for(var i = 0; i < json.length; i++) {
-									this.startTime = Math.min(this.startTime, Date.parse(json[i].time));
-									this.endTime = Math.max(this.endTime, Date.parse(json[i].time));
-									d = json[i].data.data.list;
-									for(var j = 0; j < tot; j++) {
-										var id = d[j].id;
-										for(var k = 0; k < tot; k++)
-											if(this.cars[k].id === id) break;
-										if(k === tot) {
-											console.log("can not find the bus " + d[j].cph);
-										} else {
-											if(!this.cars[k].data.length || this.cars[k].data[this.cars[k].data.length - 1].gpsTime !== d[j].gpsTime)
-											this.cars[k].data.push({
-												gpsTime: d[j].gpsTime,
-												lon: d[j].lon,
-												lat: d[j].lat,
-												velocity: d[j].velocity
-											});
-										}
-									}
-								}
-							}
-							for(var i = 0; i < this.cars.length; i++)
-								this.cars[i].p = 0;
-							this.initMarker();
-
-							this.time = this.startTime;
-							if(Date.now() - this.startTime < 24*3600*1000 && new Date(Date.now() - 3600000).getDate() === new Date(this.startTime).getDate())
-								setInterval(this.loadData, 10000);
-						}
-					}
-				}
-			},
-			loadData() {
-				var request = new XMLHttpRequest();
-				request.open("get", "http://gps.scyhrt.com/gps/vehicle/getBusToGPSVehiclePositions");
-				request.send(null);
-				request.onload = () => {
-					var json = JSON.parse(request.responseText);
-					if(json.code === 200) {
-						this.endTime = Math.max(this.endTime, Date.now());
-						var tot = json.data.total;
-						var d = json.data.list;
-						for(var i = 0; i < tot; i++) {
-							var id = d[i].id;
-							for(var k = 0; k < tot; k++)
-								if(this.cars[k].id === id) break;
-							if(k === tot) {
-								console.log("can not find the bus " + d[i].cph);
-							} else {
-								if(!this.cars[k].data.length || this.cars[k].data[this.cars[k].data.length - 1].gpsTime !== d[i].gpsTime)
-								this.cars[k].data.push({
-									gpsTime: d[i].gpsTime,
-									lon: d[i].lon,
-									lat: d[i].lat,
-									velocity: d[i].velocity
-								});
-							}
-						}
-					}
-				}
-			},
-			reset() {
-				for(var i = 0; i < this.cars.length; i++) {
-					this.cars[i].p = 0;
-				}
-				this.time = this.startTime;
-				this.playSpeed = 0;
-				this.initMarker();
-				this.log = [];
-			},
-			initStartEndTime() {
-				this.startTime = Date.now();
-				this.endTime = 0;
-				for(var i = 0; i < this.cars.length; i++) {
-					this.startTime = Math.min(this.startTime, Date.parse(this.cars[i].data[0].gpsTime));
-					this.endTime = Math.max(this.endTime, Date.parse(this.cars[i].data[this.cars[i].data.length-1].gpsTime));
-				}
-				this.time = this.startTime;
-			},
-			initMarker() {
-				for(var i = 0; i < this.marker.length; i++)
-					this.marker[i].stopMove(), this.marker[i].hide();
-				this.marker = [];
-				this.carPower = []; ///////
-				var chepaihao = ["川F00055D", "川F00019D", "川F00186D", "川F00881D", "川F00031D", "川F00065D", "川F00016D", "川F00058D", "川F00056D", "川F00076D"]; ////////////
-				for(var i = 0; i < this.cars.length; i++) {
-					this.marker.push(null);
-					this.cars[i].status = 0; /////////
-					this.cars[i].cphid = chepaihao.indexOf(this.cars[i].cph) + 1; /////////////
-					this.cars[i].power = 100.0; ////////
-					this.carPower.push(100); ///////
-					this.marker[i] = new AMap.Marker({
-						map: this.map,
-						position: new AMap.LngLat(this.cars[i].data[0].lon, this.cars[i].data[0].lat),
-						icon: new AMap.Icon({
-							size: new AMap.Size(30, 30),
-							image: this.cars[i].cphid+'.png', //"http://bus.scyhrt.com/images/bus.png",
-							imageSize: new AMap.Size(30, 30)
-						}),
-						offset: new AMap.Pixel(-15,-15)
-					});
-				}
-			},
-			initBounds() {
-				// init points
-				var p = [
-					{lon: 104.3905, lat: 31.1690},	// 0 充电
-					{lon: 104.3935, lat: 31.1720},
-					{lon: 104.3896, lat: 31.1265},	// 1 文庙出发
-					{lon: 104.3912, lat: 31.1272},
-					{lon: 104.1935, lat: 30.8166},	// 2 到达新都
-					{lon: 104.1970, lat: 30.8174},
-					{lon: 104.1950, lat: 30.8163},	// 3 新都出发
-					{lon: 104.1962, lat: 30.8168},
-					{lon: 104.3930, lat: 31.1260},	// 4 到达文庙
-					{lon: 104.3945, lat: 31.1269},
-					{lon: 104.3755, lat: 31.1305},	// 5 文庙等待
-					{lon: 104.3820, lat: 31.1350},
-					{lon: 104.1940, lat: 30.8180},	// 6 新都等待
-					{lon: 104.1980, lat: 30.8240},
-				];
-				// display points
-				for(var i = 0; i < p.length; i++) {
-					this.points[i] = new AMap.Marker({
-						map: this.map,
-						position: new AMap.LngLat(p[i].lon, p[i].lat),
-						icon: new AMap.Icon({
-							size: new AMap.Size(16, 16),
-							image: "http://bus.scyhrt.com/images/point.png",
-							imageSize: new AMap.Size(16, 16)
-						}),
-						offset: new AMap.Pixel(-8, -8)
-					});
-				}
-				// init bounds
-				for(var i = 1; i < p.length; i+=2) {
-					this.bounds.push(new AMap.Bounds(
-						new AMap.LngLat(p[i-1].lon, p[i-1].lat),
-						new AMap.LngLat(p[i].lon, p[i].lat)
-					));
-				}
-			},
-			drive() {
-				this.time += 1000;
-				if(this.time >= this.endTime) clearInterval(this.timer);
-				if(Date.now() - this.time <= 50000) this.playSpeed = 1, this.trafficLayer.show();
-				if(Date.now() - this.time <= 1000000 && this.playSpeed > 20) this.playSpeed = 20;
-				if(Date.now() - this.time <= 3000000 && this.playSpeed > 100) this.playSpeed = 100;
-
-				for(var i = 0; i < this.cars.length; i++) {
-					var car = this.cars[i];
-					while(car.p < car.data.length && this.time > Date.parse(car.data[car.p].gpsTime)) car.p++;
-					if(car.p < car.data.length-1 && this.time === Date.parse(car.data[car.p].gpsTime)) {
-						var nex = Date.parse(car.data[car.p+1].gpsTime) - this.time;
-						var pos = new AMap.LngLat(car.data[car.p+1].lon, car.data[car.p+1].lat);
-						var dis = this.marker[i].getPosition().distance(pos);
-						this.marker[i].moveTo(pos, dis*3600/nex*this.playSpeed);
-						car.power = Math.max(0, car.power - dis * 0.0004);
-						Vue.set(this.carPower, car.cphid - 1, car.power);
-
-						// write logs
-						var po = new AMap.LngLat(car.data[car.p].lon, car.data[car.p].lat);
-						var tm = car.data[car.p].gpsTime;
-						var ve = car.data[car.p].velocity;
-						// 0 未知， 1 开始充电， 2 充电完成， 3 文庙准备， 4 文庙出发， 5 到达新都， 6 新都准备， 7 新都出发， 8 到达文庙， 9 文庙等待, 10 新都等待
-						switch(car.status) {
-							case 0:
-								for(var j = 0; j < this.bounds.length; j++) {
-									if(this.bounds[j].contains(po)) {
-										if(j === 0) car.status = 1, car.startChargingTime = tm;
-										if(j === 1) car.status = 3;
-										if(j === 2) car.status = 5;
-										if(j === 3) car.status = 6;
-										if(j === 4) car.status = 8;
-										if(j === 5) car.status = 9;
-									}
-								}
-								break;
-							case 1:
-								if(!this.bounds[0].contains(po)) {
-									car.status = 2, this.log.push({gpsTime: tm, carId: car.cphid, status: 2});
-									car.power = Math.min(100, car.power + (Date.parse(tm) - Date.parse(car.startChargingTime)) * 75 / 3600 / 1000);
-									Vue.set(this.carPower, car.cphid - 1, car.power);
-								}
-								break;
-							case 2:
-								if(this.bounds[1].contains(po) && ve === 0) car.status = 3, this.log.push({gpsTime: tm, carId: car.cphid, status: 3});
-								break;
-							case 3:
-								if(!this.bounds[1].contains(po)) car.status = 4, this.log.push({gpsTime: tm, carId: car.cphid, status: 4});
-								break;
-							case 4:
-								if((this.bounds[0].contains(po) || this.bounds[5].contains(po))) {
-									var last3Id = -1, last4Id = -1;
-									for(var k = 0; k < this.log.length; k++)
-										if(this.log[k].carId === car.cphid) {
-											if(this.log[k].status === 3) last3Id = k;
-											if(this.log[k].status === 4) last4Id = k;
-										}
-									if(this.bounds[0].contains(po)) {
-										if(last4Id !== -1) this.log.splice(last4Id, 1);
-										if(last3Id !== -1) this.log.splice(last3Id, 1);
-										car.status = 1, car.startChargingTime = tm, this.log.push({gpsTime: tm, carId: car.cphid, status: 1});
-									}
-									if(this.bounds[5].contains(po)) {
-										if(last3Id !== -1) this.log[last3Id].del = 1;
-										if(last4Id !== -1) this.log[last4Id].del = 1;
-										car.status = 9, this.log.push({gpsTime: tm, carId: car.cphid, status: 9});
-									}
-								}
-								if(this.bounds[2].contains(po)) car.status = 5, this.log.push({gpsTime: tm, carId: car.cphid, status: 5});
-								break;
-							case 5:
-								if(ve === 0) {
-									if(this.bounds[3].contains(po)) car.status = 6, this.log.push({gpsTime: tm, carId: car.cphid, status: 6});
-									if(this.bounds[6].contains(po)) car.status = 10, this.log.push({gpsTime: tm, carId: car.cphid, status: 10});
-								}
-								break;
-							case 6:
-								if(!this.bounds[3].contains(po)) car.status = 7, this.log.push({gpsTime: tm, carId: car.cphid, status: 7});
-								break;
-							case 7:
-								if(this.bounds[4].contains(po)) car.status = 8, this.log.push({gpsTime: tm, carId: car.cphid, status: 8});
-								if(this.bounds[6].contains(po) && ve === 0) {
-									var last6Id = -1, last7Id = -1;
-									for(var k = 0; k < this.log.length; k++)
-										if(this.log[k].carId === car.cphid) {
-											if(this.log[k].status === 6) last6Id = k;
-											if(this.log[k].status === 7) last7Id = k;
-										}
-									if(last6Id !== -1) this.log[last6Id].del = 1;
-									if(last7Id !== -1) this.log[last7Id].del = 1;
-									car.status = 10, this.log.push({gpsTime: tm, carId: car.cphid, status: 10});
-								}
-								break;
-							case 8:
-								if(this.bounds[0].contains(po)) car.status = 1, car.startChargingTime = tm, this.log.push({gpsTime: tm, carId: car.cphid, status: 1});
-								if(this.bounds[5].contains(po)) car.status = 9, this.log.push({gpsTime: tm, carId: car.cphid, status: 9});
-								if(this.bounds[1].contains(po) && ve === 0) car.status = 3, this.log.push({gpsTime: tm, carId: car.cphid, status: 3});
-								break;
-							case 9:
-								if(this.bounds[1].contains(po) && ve === 0) car.status = 3, this.log.push({gpsTime: tm, carId: car.cphid, status: 3});
-								if(this.bounds[2].contains(po)) car.status = 5, this.log.push({gpsTime: tm, carId: car.cphid, status: 5});
-								break;
-							case 10:
-								if((this.bounds[3].contains(po)) && ve === 0) car.status = 6, this.log.push({gpsTime: tm, carId: car.cphid, status: 6});
-								if(this.bounds[4].contains(po)) car.status = 8, this.log.push({gpsTime: tm, carId: car.cphid, status: 8});
-								break;
-						}
-						var doc = document.getElementsByClassName('control-log')[0];
-						doc.scrollTop = doc.scrollHeight;
-					}
-				}
-			},
-			startAnimation() {
-				this.timer = setInterval(this.drive, 1000 / this.playSpeed);
-			},
-			pauseAnimation() {
-				clearInterval(this.timer);
 			}
 		},
 		mounted() {
+			this.date = '2020-09-01';
+			this.points = [
+				{x: 104.3905, y: 31.1690},	// 0 充电
+				{x: 104.3935, y: 31.1720},
+				{x: 104.3896, y: 31.1265},	// 1 文庙出发
+				{x: 104.3912, y: 31.1272},
+				{x: 104.1935, y: 30.8166},	// 2 到达新都
+				{x: 104.1970, y: 30.8174},
+				{x: 104.1950, y: 30.8163},	// 3 新都出发
+				{x: 104.1962, y: 30.8168},
+				{x: 104.3930, y: 31.1260},	// 4 到达文庙
+				{x: 104.3945, y: 31.1269},
+				{x: 104.3755, y: 31.1305},	// 5 文庙等待
+				{x: 104.3820, y: 31.1350},
+				{x: 104.1940, y: 30.8180},	// 6 新都等待
+				{x: 104.1980, y: 30.8240},
+			];
+
 			this.map = new AMap.Map("container", {
 				resizeEnable: true,
 				center: [104.30, 30.9666],
 				zoom: 11
 			});
-
-			this.trafficLayer = new AMap.TileLayer.Traffic({
-				zIndex: 10,
-				autoRefresh: true,
-				interval: 180
-			});
-			this.trafficLayer.setMap(this.map);
-			this.trafficLayer.hide();
-
 			this.initBounds();
-			this.loadInitData();
-			window.onhashchange = this.loadInitData;
+			this.initRectangles();
+			this.initPointMarkers();
+
+			this.loadData(this.calc);
+			window.onhashchange = this.onHashChange;
+		},
+		methods: {
+			initBounds() {
+				for(var i = 1; i < this.points.length; i+=2) {
+					this.bounds.push(new AMap.Bounds(
+						new AMap.LngLat(this.points[i-1].x, this.points[i-1].y),
+						new AMap.LngLat(this.points[ i ].x, this.points[ i ].y)
+					));
+				}
+			},
+			initRectangles() {
+				for(var i = 0; i < this.bounds.length; i++) {
+					this.rectangles.push(new AMap.Rectangle({
+						bounds: this.bounds[i],
+						strokeOpacity: 0.6,
+						strokeColor: 'red',
+						strokeWeight: 2,
+						fillOpacity: 0,
+						map: this.map
+					}));
+				}
+			},
+			initPointMarkers() {
+				for(var i = 0; i < this.points.length; i++) {
+					this.pointMarkers.push(new AMap.Marker({
+						map: this.map,
+						position: new AMap.LngLat(this.points[i].x, this.points[i].y),
+						icon: new AMap.Icon({
+							size: new AMap.Size(16, 16),
+							image: "http://bus.scyhrt.com/images/point.png",
+							imageSize: new AMap.Size(16, 16)
+						}),
+						offset: new AMap.Pixel(-8, -8),
+						draggable: true
+					}));
+					this.pointMarkers[i].on('dragging', this.onDragPoint);
+				}
+			},
+			onDragPoint(e) {
+				for(var i = 0; i < this.pointMarkers.length; i++)
+					if(e.target._amap_id === this.pointMarkers[i]._amap_id) break;
+				if(i === this.pointMarkers.length) {
+					console.log("Can not find the pointMaker");
+				} else {
+					var p = this.pointMarkers[i].getPosition();
+					this.points[i] = {x: p.getLng(), y: p.getLat()};
+					var j = i % 2 ? i-1 : i;
+					this.bounds[j/2] = new AMap.Bounds(
+						new AMap.LngLat(this.points[ j ].x, this.points[ j ].y),
+						new AMap.LngLat(this.points[j+1].x, this.points[j+1].y)
+					);
+					this.rectangles[j/2].setBounds(this.bounds[j/2]);
+				}
+			},
+			onHashChange() {
+				var hash = location.hash.slice(1);
+				if(/(20\d{2})-((0|1)\d)-((0|1|2|3)\d)/.test(hash))
+					this.date = hash;
+			},
+			loadData(cb) {
+				var request = new XMLHttpRequest();
+				request.open("get", './data/' + this.date + '.json');
+				request.send(null);
+				request.onload = () => { this.bus = JSON.parse(request.responseText); cb(); }
+			},
+			calc() {
+				var chepaihao = ["川F00055D", "川F00019D", "川F00186D", "川F00881D", "川F00031D", "川F00065D", "川F00016D", "川F00058D", "川F00056D", "川F00076D"];
+				this.startTime = -1;
+				this.endTime = -1;
+				var area = [];
+				for(var i = 0; i < this.bus.length; i++) {
+					area.push(-1);
+					this.bus[i].p = 0;
+					this.bus[i].cphid = chepaihao.indexOf(this.bus[i].cph) + 1;
+				}
+				for(var t = 0; t < 25 * 3600; t++) {
+					for(var i = 0; i < this.bus.length; i++) {
+						var car = this.bus[i];
+						var d = car.data;
+						while(car.p < d.length && t > d[car.p].t) car.p++;
+						if(car.p < d.length && t === d[car.p].t) {
+							var po = new AMap.LngLat(d[car.p].x, d[car.p].y);
+							if(area[i] >= 0 && !this.bounds[area[i]].contains(po)) {
+								this.log.push({
+									t: t,
+									i: car.cphid,
+									a: area[i],
+									s: 0
+								});
+								// First time leave charging area.
+								if(area[i] === 0 && this.startTime < 0) this.startTime = t;
+								area[i] = -1;
+							}
+							for(var j = 0; j < this.bounds.length; j++)
+								if(this.bounds[j].contains(po) && area[i] !== j) {
+									this.log.push({
+										t: t,
+										i: car.cphid,
+										a: j,
+										s: 1
+									});
+									area[i] = j;
+									// Last time enter charging area.
+									if(j === 0 && t > this.endTime) this.endTime = t;
+								}
+						}
+					}
+				}
+
+				this.startTime = Math.floor(this.startTime / 600) * 600;
+				this.endTime = Math.ceil(this.endTime / 600) * 600;
+				this.minSlider = this.startTime / 600;
+				this.maxSlider = this.endTime / 600;
+				this.time = this.startTime;
+				this.initDisplay();
+			},
+			initDisplay() {
+				for(var i = 0; i < this.busMarkers.length; i++)
+					this.busMarkers[i].stopMove(), this.busMarkers[i].hide();
+				this.busMarkers = [];
+
+				for(var i = 0; i < this.bus.length; i++) {
+					var car = this.bus[i];
+					var d = car.data;
+					car.p = 0;
+					while(car.p < d.length - 1 && d[car.p + 1].t < this.time) car.p++;
+					this.busMarkers.push(new AMap.Marker({
+						map: this.map,
+						position: new AMap.LngLat(d[car.p].x, d[car.p].y),
+						icon: new AMap.Icon({
+							size: new AMap.Size(30, 30),
+							image: './img/' + car.cphid + '.png',
+							imageSize: new AMap.Size(30, 30)
+						}),
+						offset: new AMap.Pixel(-15,-15)
+					}));
+					// drive to
+				}
+			}
 		}
 	});
 </script>
