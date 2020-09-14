@@ -490,7 +490,7 @@
 					if(car.p < car.data.length-1 && this.time === car.data[car.p].t) {
 						var pos = new AMap.LngLat(car.data[car.p+1].x, car.data[car.p+1].y);
 						var dis = this.busMarkers[i].getPosition().distance(pos);
-						this.busMarkers[i].moveTo(pos, dis * 3.6 / this.playSpeed / (car.data[car.p+1].t - this.time));
+						this.busMarkers[i].moveTo(pos, dis * 3.6 * this.playSpeed / (car.data[car.p+1].t - this.time));
 					}
 				}
 			}
