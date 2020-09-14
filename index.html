@@ -76,6 +76,7 @@
 
 	.control-summary-content {
 		display: inline-block;
+		min-width: 42px;
 		margin: 0 5px;
 		text-align: center;
 	}
@@ -119,7 +120,7 @@
 			</span>
 		</div>
 		<div class="control-log">
-			<p v-for="item in log" v-show="selectedItem[0][item.cphId] && selectedItem[1][item.area*2+1-item.status] === 1 && time >= item.time">
+			<p v-for="item in log" v-show="selectedItem[0][item.cphId] && selectedItem[1][item.area*2+1-item.status] === 1 && time >= item.time && item.time >= startTime">
 				{{formatTime(item.time) + ' ' + item.cphId + '号车 ' + selectedName[1][item.area*2+1-item.status]}}</p>
 		</div>
 		<div class="control-summary" v-show="selectedItem[1][selectedItem[1].length-1]">
@@ -172,18 +173,19 @@
 			}
 		},
 		watch: {
-			date() { this.loadData(this.calc); },
+			date() { this.loadData(this.calc); window.location.hash = this.date; },
 			time() { this.slider = Math.floor(this.time / 600); },
 			slider() {
 				if(this.slider !== Math.floor(this.time / 600)) {
 					this.playSpeed = 0;
 					this.time = this.slider * 600;
-					this.initDisplay();
+					this.refreshDisplay();
 				}
 			},
 			playSpeed() {
 				this.playSpeed = Math.max(0, this.playSpeed);
 				this.playSpeed = Math.min(300, this.playSpeed);
+				if(this.time >= this.endTime) this.playSpeed = 0;
 				this.startAnimation();
 			}
 		},
@@ -295,7 +297,7 @@
 						draggable: true
 					}));
 					this.pointMarkers[i].on('dragging', this.onDragPoint);
-					// TODO: onDragEnd update
+					this.pointMarkers[i].on('dragend', () => { this.generateLog(); this.refreshDisplay(); });
 				}
 			},
 			onDragPoint(e) {
@@ -322,7 +324,7 @@
 			},
 			onHashChange() {
 				var hash = location.hash.slice(1);
-				if(/(20\d{2})-((0|1)\d)-((0|1|2|3)\d)/.test(hash))
+				if(/(20\d{2})-((0|1)\d)-((0|1|2|3)\d)/.test(hash) && this.date !== hash)
 					this.date = hash;
 			},
 			loadData(cb) {
@@ -333,15 +335,40 @@
 			},
 			calc() {
 				var chepaihao = ["川F00055D", "川F00019D", "川F00186D", "川F00881D", "川F00031D", "川F00065D", "川F00016D", "川F00058D", "川F00056D", "川F00076D"];
-				this.startTime = -1;
-				this.endTime = -1;
-				var area = [];
-				this.log = [];
+				var minTime = 99999, maxTime = 0;
+				for(var i = 0; i < this.bus.length; i++) {
+					this.bus[i].cphid = chepaihao.indexOf(this.bus[i].cph) + 1;
+					minTime = Math.min(minTime, this.bus[i].data[0].t);
+					maxTime = Math.max(maxTime, this.bus[i].data[this.bus[i].data.length-1].t);
+				}
+
+				this.generateLog();
+				
+				var chargingNum = 0;
+				this.startTime = this.endTime = -1;
+				for(var i = 0; i < this.log.length; i++) {
+					if(this.log[i].area === 0) {
+						if(this.log[i].status === 1) chargingNum++;
+						if(this.log[i].status === 1 && chargingNum === this.bus.length) this.endTime = this.log[i].time;
+						if(this.log[i].status === 0 && chargingNum === this.bus.length && this.startTime < 0) this.startTime = this.log[i].time;
+						if(this.log[i].status === 0) chargingNum--;
+					}
+				}
+				this.startTime = this.startTime < 0 ? minTime : Math.floor(this.startTime / 600) * 600;
+				this.endTime = this.endTime < 0 ? maxTime : Math.ceil(this.endTime / 600) * 600;
+
+				this.minSlider = this.startTime / 600;
+				this.maxSlider = this.endTime / 600;
+				this.time = this.startTime;
+				this.refreshDisplay();
+			},
+			generateLog() {
+				var area = []; this.log = [];
 				for(var i = 0; i < this.bus.length; i++) {
 					this.bus[i].p = 0;
 					area.push({a: -1, s: 0});
-					this.bus[i].cphid = chepaihao.indexOf(this.bus[i].cph) + 1;
 				}
+
 				for(var t = 0; t < 25 * 3600; t++) {
 					for(var i = 0; i < this.bus.length; i++) {
 						var car = this.bus[i];
@@ -357,38 +384,26 @@
 									area: area[i].a,
 									status: 0
 								});
-								// First time leave charging area.
-								if(area[i].a === 0 && this.startTime < 0) this.startTime = t;
 								area[i].s = 0;
 							}
 							for(var j = 0; j < this.bounds.length; j++) {
 								var trans = this.transfer[j];
 								if(this.bounds[j].contains(po) && trans.from.includes(area[i].a) && d[car.p].v <= trans.maxV) {
-									if(area[i].a > -1)
-										this.log.push({
-											time: t,
-											cphId: car.cphid,
-											busId: i,
-											area: j,
-											status: 1
-										});
+									this.log.push({
+										time: t,
+										cphId: car.cphid,
+										busId: i,
+										area: j,
+										status: 1
+									});
 									area[i] = { a: j, s: 1 };
-									// Last time enter charging area.
-									if(j === 0 && t > this.endTime) this.endTime = t;
 								}
 							}
 						}
 					}
 				}
-
-				this.startTime = Math.floor(this.startTime / 600) * 600;
-				this.endTime = Math.ceil(this.endTime / 600) * 600;
-				this.minSlider = this.startTime / 600;
-				this.maxSlider = this.endTime / 600;
-				this.time = this.startTime;
-				this.initDisplay();
 			},
-			initDisplay() {
+			refreshDisplay() {
 				for(var i = 0; i < this.busMarkers.length; i++)
 					this.busMarkers[i].stopMove(), this.busMarkers[i].hide();
 				this.busMarkers = [];
@@ -414,6 +429,7 @@
 				for(var i = 1; i < this.summary.length; i++)
 					this.summary[i].data = [];
 				for(var i = 0; i < this.log.length; i++) {
+					if(this.log[i].time < this.startTime) continue;
 					if(this.log[i].time > this.time) break;
 					this.addSummary(i);
 				}
@@ -453,20 +469,16 @@
 						}
 					}
 				}
-				var l = this.log[i];
-				this.bus[l.busId].status = { area: l.area, status: l.status, time: l.time }
+				this.bus[this.log[i].busId].status = { area: this.log[i].area, status: this.log[i].status, time: this.log[i].time }
 			},
 			startAnimation() {
-				this.pauseAnimation();
+				clearInterval(this.timer);
 				if(this.playSpeed)
 					this.timer = setInterval(this.drive, 1000 / this.playSpeed);
 			},
-			pauseAnimation() {
-				clearInterval(this.timer);
-			},
 			drive() {
 				this.time++;
-				if(this.time >= this.endTime) this.pauseAnimation();
+				if(this.time >= this.endTime) this.playSpeed = 0;
 
 				var p = this.summary[0].logId;
 				while(p < this.log.length && this.log[p].time < this.time) p++;
@@ -478,14 +490,13 @@
 					if(car.p < car.data.length-1 && this.time === car.data[car.p].t) {
 						var pos = new AMap.LngLat(car.data[car.p+1].x, car.data[car.p+1].y);
 						var dis = this.busMarkers[i].getPosition().distance(pos);
-						this.busMarkers[i].moveTo(pos, dis * 3.6 * this.playSpeed / (car.data[car.p+1].t - this.time));
+						this.busMarkers[i].moveTo(pos, dis * 3.6 / this.playSpeed / (car.data[car.p+1].t - this.time));
 					}
 				}
 			}
 		}
 	});
 </script>
-
 
 
     </body>
