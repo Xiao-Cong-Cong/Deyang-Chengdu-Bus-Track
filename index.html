@@ -110,6 +110,7 @@
 			<span @click="reduceSpeed" class="fa fa-backward"></span><span v-show="!playSpeed" @click="startPlay" class="fa fa-play"></span>
 			<span v-show="playSpeed" @click="pausePlay" class="fa fa-pause"></span><span @click="increaseSpeed" class="fa fa-forward"></span></p>
 			<v-slider class="slider" v-model="slider" :max="maxSlider" :min="minSlider" hide-details></v-slider>
+			<p>{{formatTime(endTime)}} / {{formatTime(Math.round((Date.now() - baseTime) / 1000))}}</p>
 		</v-app>
 		<div class="control-icon">
 			<span v-for="(item, i) in selectedName[0]" class="control-select" :class="{active: selectedItem[0][i]}" @click="changeSelectedItem(0, i)">
@@ -159,7 +160,8 @@
 				selectedName: [[],[]],
 				selectedItem: [[],[]],
 				summary: [],
-				timer: null
+				timer: null,
+				realTimer: null
 			}
 		},
 		computed: {
@@ -170,15 +172,24 @@
 				var t = new Date(this.date);
 				var w = ['日', '一', '二', '三', '四', '五', '六'];
 				return w[t.getDay()];
-			}
+			},
+			baseTime() { return Date.parse(this.date + ' 00:00:00'); }
 		},
 		watch: {
-			date() { this.loadData(this.calc); window.location.hash = this.date; },
-			time() { this.slider = Math.floor(this.time / 600); },
+			date() {
+				this.playSpeed = 0;
+				clearInterval(this.realTimer);
+				window.location.hash = this.date;
+				this.loadData(this.calc);
+			},
+			time() {
+				this.slider = Math.floor(this.time / 60);
+				this.maxSlider = Math.max(this.maxSlider, this.slider);
+			},
 			slider() {
-				if(this.slider !== Math.floor(this.time / 600)) {
+				if(this.slider !== Math.floor(this.time / 60)) {
 					this.playSpeed = 0;
-					this.time = this.slider * 600;
+					this.time = this.slider * 60;
 					this.refreshDisplay();
 				}
 			},
@@ -331,7 +342,47 @@
 				var request = new XMLHttpRequest();
 				request.open("get", './data/' + this.date + '.json');
 				request.send(null);
-				request.onload = () => { this.bus = JSON.parse(request.responseText); cb(); }
+				request.onload = () => {
+					this.bus = JSON.parse(request.responseText); cb();
+					if(Date.now() > this.baseTime && Date.now() - this.baseTime < 90000000)
+						this.realTimer = setInterval(this.loadRealData, 5000);
+				}
+			},
+			loadRealData() {
+				var request = new XMLHttpRequest();
+				request.open("get", "http://gps.scyhrt.com/gps/vehicle/getBusToGPSVehiclePositions");
+				request.send(null);
+				request.onload = () => {
+					var json = JSON.parse(request.responseText);
+					if(json.code === 200) {
+						var tot = json.data.total;
+						var l = json.data.list;
+						var timeArray = [];
+						for(var i = 0; i < tot; i++) {
+							for(var j = 0; j < tot; j++)
+								if(this.bus[j].id === l[i].id) break;
+							var now = (Date.parse(l[i].gpsTime) - this.baseTime) / 1000;
+							if(j === tot) console.log("can not find the bus " + l[i].cph);
+							else if(!this.bus[j].data.length || now > this.bus[j].data[this.bus[j].data.length-1].t) {
+								this.bus[j].data.push({
+									t: now,
+									x: l[i].lon,
+									y: l[i].lat,
+									v: l[i].velocity
+								});
+								timeArray.push(now);
+								this.endTime = Math.max(this.endTime, now);
+								this.maxSlider = Math.floor(this.endTime / 60) - 1;
+							}
+						}
+						timeArray.sort();
+						for(var ti = 0; ti < timeArray.length; ti++) {
+							var t = timeArray[ti];
+							for(var i = 0; i < this.bus.length; i++)
+								if(t === this.bus[i].data[this.bus[i].data.length-1].t) this.pushLog(i, t, this.bus[i].data.length-1);
+						}
+					}
+				}
 			},
 			calc() {
 				var chepaihao = ["川F00055D", "川F00019D", "川F00186D", "川F00881D", "川F00031D", "川F00065D", "川F00016D", "川F00058D", "川F00056D", "川F00076D"];
@@ -355,51 +406,51 @@
 					}
 				}
 				this.startTime = this.startTime < 0 ? minTime : Math.floor(this.startTime / 600) * 600;
-				this.endTime = this.endTime < 0 ? maxTime : Math.ceil(this.endTime / 600) * 600;
+				this.endTime = this.endTime < this.startTime ? maxTime : Math.ceil(this.endTime / 600) * 600;
 
-				this.minSlider = this.startTime / 600;
-				this.maxSlider = this.endTime / 600;
+				this.minSlider = this.startTime / 60;
+				this.maxSlider = this.endTime / 60;
 				this.time = this.startTime;
 				this.refreshDisplay();
 			},
 			generateLog() {
-				var area = []; this.log = [];
+				var p = []; this.log = [];
 				for(var i = 0; i < this.bus.length; i++) {
-					this.bus[i].p = 0;
-					area.push({a: -1, s: 0});
+					p.push(0);
+					this.bus[i].area = {a: -1, s: 0};
 				}
 
 				for(var t = 0; t < 25 * 3600; t++) {
 					for(var i = 0; i < this.bus.length; i++) {
-						var car = this.bus[i];
-						var d = car.data;
-						while(car.p < d.length && t > d[car.p].t) car.p++;
-						if(car.p < d.length && t === d[car.p].t) {
-							var po = new AMap.LngLat(d[car.p].x, d[car.p].y);
-							if(area[i].s && !this.bounds[area[i].a].contains(po)) {
-								this.log.push({
-									time: t,
-									cphId: car.cphid,
-									busId: i,
-									area: area[i].a,
-									status: 0
-								});
-								area[i].s = 0;
-							}
-							for(var j = 0; j < this.bounds.length; j++) {
-								var trans = this.transfer[j];
-								if(this.bounds[j].contains(po) && trans.from.includes(area[i].a) && d[car.p].v <= trans.maxV) {
-									this.log.push({
-										time: t,
-										cphId: car.cphid,
-										busId: i,
-										area: j,
-										status: 1
-									});
-									area[i] = { a: j, s: 1 };
-								}
-							}
-						}
+						while(p[i] < this.bus[i].data.length && t > this.bus[i].data[p[i]].t) p[i]++;
+						if(p[i] < this.bus[i].data.length && t === this.bus[i].data[p[i]].t) this.pushLog(i, t, p[i]);
+					}
+				}
+			},
+			pushLog(busId, time, p) {
+				var car = this.bus[busId];
+				var po = new AMap.LngLat(car.data[p].x, car.data[p].y);
+				if(car.area.s && !this.bounds[car.area.a].contains(po)) {
+					this.log.push({
+						time: time,
+						cphId: car.cphid,
+						busId: busId,
+						area: car.area.a,
+						status: 0
+					});
+					car.area.s = 0;
+				}
+				for(var j = 0; j < this.bounds.length; j++) {
+					var trans = this.transfer[j];
+					if(this.bounds[j].contains(po) && trans.from.includes(car.area.a) && car.data[p].v <= trans.maxV) {
+						this.log.push({
+							time: time,
+							cphId: car.cphid,
+							busId: busId,
+							area: j,
+							status: 1
+						});
+						car.area = { a: j, s: 1 };
 					}
 				}
 			},
@@ -409,7 +460,7 @@
 				this.busMarkers = [];
 
 				for(var i = 0; i < this.bus.length; i++) {
-					this.bus[i].status = {area: -1, status: 0, time: 0};
+					this.bus[i].lastLogId = -1;
 					var car = this.bus[i];
 					var d = car.data;
 					car.p = 0;
@@ -460,16 +511,16 @@
 								matched: matched
 							});
 						} else {
-							var bs = this.bus[this.log[i].busId].status;
-							if(bs.area * 2 + 1 - bs.status === sum.showId[0])
+							var lastLog = this.log[this.bus[this.log[i].busId].lastLogId];
+							if(lastLog && lastLog.area * 2 + 1 - lastLog.status === sum.showId[0])
 								sum.data.push({
-									time: Math.round((this.log[i].time - bs.time) / 60),
+									time: Math.round((this.log[i].time - lastLog.time) / 60),
 									matched: true
 								});
 						}
 					}
 				}
-				this.bus[this.log[i].busId].status = { area: this.log[i].area, status: this.log[i].status, time: this.log[i].time }
+				this.bus[this.log[i].busId].lastLogId = i;
 			},
 			startAnimation() {
 				clearInterval(this.timer);
@@ -479,6 +530,7 @@
 			drive() {
 				this.time++;
 				if(this.time >= this.endTime) this.playSpeed = 0;
+				if(this.time >= (Date.now() - this.baseTime) / 1000  - 60) this.playSpeed = 1;
 
 				var p = this.summary[0].logId;
 				while(p < this.log.length && this.log[p].time < this.time) p++;
