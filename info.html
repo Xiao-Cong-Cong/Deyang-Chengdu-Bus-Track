@@ -4,7 +4,7 @@
         <title>DeYang-Chengdu Metro bus track</title>
 		<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
 		<script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
-		<script src="https://webapi.amap.com/maps?v=1.4.15&key=74ad0628ee4b58175f67dc5068bb8b5a"></script>
+		<script src="https://webapi.amap.com/maps?v=1.4.15&key=74ad0628ee4b58175f67dc5068bb8b5a&&plugin=AMap.Driving"></script>
 		<link href="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.css" rel="stylesheet">
 		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     </head>
@@ -104,6 +104,11 @@
 <div id="my-app">
 	<div id="container"></div>
 	<div id="control">
+		<div class="predict">
+			<div class="predict-content" v-for="bus in runningBus">
+				{{('0'+bus.cphId).slice(-2)}} 号车 预计 {{formatTime(bus.predictTime)}} 到达 {{bus.from ? '文庙' : '新都'}}
+			</div>
+		</div>
 		<v-app>
 			<p>日期：{{date}} 星期{{weekday}}</p>
 			<p>时间：{{formatedTime}} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; x<input type="text" class="control-speed" v-model.number="playSpeed"/>
@@ -161,7 +166,9 @@
 				selectedItem: [[],[]],
 				summary: [],
 				timer: null,
-				realTimer: null
+				realTimer: null,
+				runningBus: [],
+				loadRealDataCount: 0,
 			}
 		},
 		computed: {
@@ -386,6 +393,8 @@
 						}
 					}
 				}
+
+				this.predict((this.loadRealDataCount++) % this.bus.length);
 			},
 			calc() {
 				var chepaihao = ["川F00055D", "川F00019D", "川F00186D", "川F00881D", "川F00031D", "川F00065D", "川F00016D", "川F00058D", "川F00056D", "川F00076D"];
@@ -442,6 +451,15 @@
 						status: 0
 					});
 					car.area.s = 0;
+
+					if(car.area.a === 1 || car.area.a === 3)
+						this.runningBus.push({
+							busId: busId,
+							cphId: car.cphid,
+							from: car.area.a === 1 ? 0 : 1,
+							startTime: time,
+							predictTime: 0
+						});
 				}
 				for(var j = 0; j < this.bounds.length; j++) {
 					var trans = this.transfer[j];
@@ -454,6 +472,13 @@
 							status: 1
 						});
 						car.area = { a: j, s: 1 };
+
+						for(var i = 0; i < this.runningBus.length; i++)
+							if(this.runningBus[i].busId === busId)
+								if((this.runningBus[i].from === 0 && j !== 4) || this.runningBus[i].from === 1) {
+									this.runningBus.splice(i, 1);
+									break;
+								}
 					}
 				}
 			},
@@ -554,6 +579,48 @@
 				var bottom = L.scrollHeight - L.scrollTop - L.offsetHeight;
 				await this.$nextTick();
 				if(!bottom) L.scrollTop = L.scrollHeight;
+			},
+			predict(busId) {
+				// this.runningBus = [
+				// 	{
+				// 		busId: 0,
+				// 		cphId: 0,
+				// 		// cph: '',
+				// 		from: 0 / 1, // 0 文庙, 1 新都, 2 文庙去五洲广场 3 五洲广场去文庙
+				// 		startTime: 0,
+				// 		predictTime: 0,
+				// 		LeftDistance: 0,
+				// 	}
+				// ];
+				var poi = [
+					new AMap.LngLat(104.3935, 31.1267),
+					new AMap.LngLat(104.1962, 30.8168),
+					new AMap.LngLat(104.3896, 31.1021),
+					new AMap.LngLat(104.3895, 31.1010)
+				];
+				var driving = new AMap.Driving();
+				for(var i = 0; i < this.runningBus.length; i++)
+					if(this.runningBus[i].busId === busId) {
+						var b = this.runningBus[i];
+						var lastest = this.bus[busId].data[this.bus[busId].data.length-1];
+						var po = new AMap.LngLat(lastest.x, lastest.y);
+						var de = poi[b.from^1];
+						var wp = [];
+						if(b.from && po.getLat() < 31.100) wp.push(poi[3]);
+						if(!b.from && po.getLat() > 31.103) wp.push(poi[2]);
+
+						driving.search(po, de, {waypoints: wp}, (status, result) => {
+							console.log(b, status, result);
+							if(status === 'complete') {
+								b.predictTime = Math.round((Date.now() - this.baseTime) / 1000) + result.routes[0].time;
+								b.LeftDistance = result.routes[0].distance;
+							}
+						})
+					}
+			},
+			predictAll() {
+				for(var i = 0; i < this.bus.length; i++)
+					this.predict(i);
 			}
 		}
 	});
