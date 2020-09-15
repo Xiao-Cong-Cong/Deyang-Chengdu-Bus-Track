@@ -185,7 +185,9 @@
 			time() {
 				this.slider = Math.floor(this.time / 60);
 				this.maxSlider = Math.max(this.maxSlider, this.slider);
+				this.autoScrollLog();
 			},
+			selectedItem() { this.autoScrollLog(); },
 			slider() {
 				if(this.slider !== Math.floor(this.time / 60)) {
 					var speed = this.playSpeed;
@@ -547,6 +549,12 @@
 						this.busMarkers[i].moveTo(pos, dis * 3.6 * this.playSpeed / (car.data[car.p+1].t - this.time));
 					}
 				}
+			},
+			autoScrollLog: async function() {
+				var L = document.getElementsByClassName("control-log")[0];
+				var bottom = L.scrollHeight - L.scrollTop - L.offsetHeight;
+				await this.$nextTick();
+				if(!bottom) L.scrollTop = L.scrollHeight;
 			}
 		}
 	});
