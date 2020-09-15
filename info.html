@@ -1,0 +1,564 @@
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>DeYang-Chengdu Metro bus track</title>
+		<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
+		<script src="https://webapi.amap.com/maps?v=1.4.15&key=74ad0628ee4b58175f67dc5068bb8b5a"></script>
+		<link href="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.css" rel="stylesheet">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    </head>
+    <body>
+
+
+<style>
+    html, body {
+        height: 100%;
+        width: 100%;
+		overflow: auto;
+    }
+	
+	#container {
+		position: absolute;
+		height: 100%;
+		width: 750px;
+	}
+
+	#control {
+		margin-left: 760px;
+	}
+
+	.control-speed {
+		width: 36px;
+	}
+
+	.control-select {
+		cursor: pointer;
+		min-width: 20px;
+		display: inline-block;
+		margin: 0 5px;
+		text-align: center;
+	}
+
+	.active {
+		background-color: greenyellow;
+	}
+
+	.missData {
+		color: red;
+	}
+
+	.control-log {
+		margin-top: 16px;
+		height: 66%;
+		width: 240px;
+		position: absolute;
+		overflow: auto;
+	}
+
+	.control-log::-webkit-scrollbar,
+	.control-summary::-webkit-scrollbar {
+		width: 0 !important;
+	}
+
+	.control-summary {
+		margin-top: 2%;
+		margin-left: 270px;
+		width: calc(100vw) - 1050;
+		overflow: auto;
+	}
+
+	.control-summary-title {
+		margin: 20px 0;
+		font-weight: bold;
+		width: 80px;
+	}
+
+	.control-summary-content {
+		display: inline-block;
+		min-width: 42px;
+		margin: 0 5px;
+		text-align: center;
+	}
+
+	.slider {
+		height: 30px;
+		margin-bottom: 16px;
+		width: 95%;
+	}
+
+	.v-application--wrap {
+		min-height: 0;
+	}
+
+	.fa {
+		margin: 0 20px;
+		font-size: 18px;
+		cursor: pointer;
+	}
+
+	.fa-play, .fa-pause {
+		width: 20px;
+	}
+</style>
+<div id="my-app">
+	<div id="container"></div>
+	<div id="control">
+		<v-app>
+			<p>日期：{{date}} 星期{{weekday}}</p>
+			<p>时间：{{formatedTime}} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; x<input type="text" class="control-speed" v-model.number="playSpeed"/>
+			<span @click="reduceSpeed" class="fa fa-backward"></span><span v-show="!playSpeed" @click="startPlay" class="fa fa-play"></span>
+			<span v-show="playSpeed" @click="pausePlay" class="fa fa-pause"></span><span @click="increaseSpeed" class="fa fa-forward"></span></p>
+			<v-slider class="slider" v-model="slider" :max="maxSlider" :min="minSlider" hide-details></v-slider>
+			<p v-show="Date.now() - baseTime < 90000000">{{formatTime(endTime)}} / {{formatTime(Math.round((Date.now() - baseTime) / 1000))}}</p>
+		</v-app>
+		<div class="control-icon">
+			<span v-for="(item, i) in selectedName[0]" class="control-select" :class="{active: selectedItem[0][i]}" @click="changeSelectedItem(0, i)">
+				{{item}}
+			</span>
+			<span v-for="(item, i) in selectedName[1]" class="control-select" :class="{active: selectedItem[1][i]}" @click="changeSelectedItem(1, i)" v-if="selectedItem[1][i]>=0">
+				{{item}}
+			</span>
+		</div>
+		<div class="control-log">
+			<p v-for="item in log" v-show="selectedItem[0][item.cphId-1] && selectedItem[1][item.area*2+1-item.status] === 1 && time >= item.time && item.time >= startTime">
+				{{formatTime(item.time) + ' ' + ('0'+item.cphId).slice(-2) + '号车 ' + selectedName[1][item.area*2+1-item.status]}}</p>
+		</div>
+		<div class="control-summary" v-show="selectedItem[1][selectedItem[1].length-1]">
+			<div v-for="(item, i) in summary" v-show="i && item.data.length && selectedItem[1][item.showId[0]] && selectedItem[1][item.showId[1]]">
+				<div class="control-summary-title">{{item.title}}</div>
+				<div class="control-summary-content" :class="{missData: !l.matched}" v-for="l in item.data">
+					{{ item.raw ? formatTime(l.time).slice(0,5) : l.time }}
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<script>
+	var app = new Vue({
+		el: '#my-app',
+		vuetify: new Vuetify(),
+		data() {
+			return {
+				date: '',
+				time: 0,
+				bus: [],
+				log: [],
+				map: null,
+				points: [],
+				bounds: [],
+				transfer: [],
+				rectangles: [],
+				busMarkers: [],
+				pointMarkers: [],
+				startTime: -1,
+				endTime: -1,
+				slider: 0,
+				maxSlider: 0,
+				minSlider: 0,
+				playSpeed: 0,
+				selectedName: [[],[]],
+				selectedItem: [[],[]],
+				summary: [],
+				timer: null,
+				realTimer: null
+			}
+		},
+		computed: {
+			formatedTime() {
+				return this.formatTime(this.time);
+			},
+			weekday() {
+				var t = new Date(this.date);
+				var w = ['日', '一', '二', '三', '四', '五', '六'];
+				return w[t.getDay()];
+			},
+			baseTime() { return Date.parse(this.date + ' 00:00:00'); }
+		},
+		watch: {
+			date() {
+				this.playSpeed = 0;
+				clearInterval(this.realTimer);
+				window.location.hash = this.date;
+				this.loadData(this.calc);
+			},
+			time() {
+				this.slider = Math.min(Math.floor(this.time / 60), this.maxSlider);
+				this.autoScrollLog();
+			},
+			selectedItem() { this.autoScrollLog(); },
+			slider() {
+				if(this.slider !== Math.floor(this.time / 60)) {
+					var speed = this.playSpeed;
+					this.playSpeed = 0;
+					this.time = this.slider * 60;
+					this.refreshDisplay();
+					this.playSpeed = speed;
+				}
+			},
+			playSpeed() {
+				this.playSpeed = Math.max(0, this.playSpeed);
+				this.playSpeed = Math.min(300, this.playSpeed);
+				if(this.time >= this.endTime) this.playSpeed = 0;
+				this.startAnimation();
+			}
+		},
+		mounted() {
+			this.date = '2020-09-01';
+			this.points = [
+				{x: 104.3905, y: 31.1690},	// 0 充电
+				{x: 104.3935, y: 31.1720},
+				{x: 104.3896, y: 31.1265},	// 1 文庙出发
+				{x: 104.3912, y: 31.1272},
+				{x: 104.1935, y: 30.8166},	// 2 到达新都
+				{x: 104.1970, y: 30.8174},
+				{x: 104.1950, y: 30.8163},	// 3 新都出发
+				{x: 104.1962, y: 30.8168},
+				{x: 104.3930, y: 31.1260},	// 4 到达文庙
+				{x: 104.3945, y: 31.1269},
+				{x: 104.3755, y: 31.1305},	// 5 文庙等待
+				{x: 104.3820, y: 31.1350},
+				{x: 104.1940, y: 30.8180},	// 6 新都等待
+				{x: 104.1980, y: 30.8240},
+			];
+			this.transfer = [
+				{from: [-1,  1,2,3,4,5,6], maxV: 0},
+				{from: [-1,0,  2,3,4,5,6], maxV: 0},
+				{from: [-1,0,1,    4,5  ], maxV: 99},
+				{from: [-1,0,1,2,  4,5,6], maxV: 0},
+				{from: [-1,    2,3,    6], maxV: 99},
+				{from: [-1,0,1,2,3,4,  6], maxV: 0},
+				{from: [-1,0,1,2,3,4,5  ], maxV: 0},
+			];
+			this.selectedName = [['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],														// bus
+				['开始充电', '充电完成', '文庙准备', '文庙出发', '到达新都', '新都下客完成', '新都准备', '新都出发', '到达文庙', '文庙下客完成',	// status
+				 '文庙等待', '离开文庙等待', '新都等待', '离开新都等待', '总结']];
+			this.selectedItem = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [0, 0, 0, 1, 1, -1, 0, 1, 1, -1,   0, -1, 0, -1, 1]];
+			this.summary = [
+				{logId: 0},
+				{showId: [0,0], title: '开始充电', raw: 1, data: []},
+				{showId: [0,1], title: '充电时间', raw: 0, data: []},
+				{showId: [1,2], title: '电 -> 文', raw: 0, data: []},
+				{showId: [2,3], title: '文上时间', raw: 0, data: []},
+				{showId: [3,3], title: '文庙出发', raw: 1, data: []},
+				{showId: [4,4], title: '新都到达', raw: 1, data: []},
+				{showId: [3,4], title: '文 -> 新', raw: 0, data: []},
+				{showId: [6,7], title: '新上时间', raw: 0, data: []},
+				{showId: [7,7], title: '新都出发', raw: 1, data: []},
+				{showId: [8,8], title: '文庙到达', raw: 1, data: []},
+				{showId: [7,8], title: '新 -> 文', raw: 0, data: []}
+			]
+
+			this.map = new AMap.Map("container", {
+				resizeEnable: true,
+				center: [104.30, 30.9666],
+				zoom: 11
+			});
+			this.initBounds();
+			this.initRectangles();
+			this.initPointMarkers();
+
+			this.onHashChange();
+			window.onresize = this.onResizeWindow;
+			window.onhashchange = this.onHashChange;
+		},
+		methods: {
+			reduceSpeed() { this.playSpeed = Math.max(0, this.playSpeed - 20); },
+			startPlay() { this.playSpeed = 60; },
+			pausePlay() { this.playSpeed = 0; },
+			increaseSpeed() { this.playSpeed = Math.min(120, this.playSpeed + 20); },
+			changeSelectedItem(i, j) { var temp = this.selectedItem[i]; temp[j] ^= 1; Vue.set(this.selectedItem, i, temp); },
+			formatTime(time) {
+				var h = Math.floor(time / 3600) % 24;
+				var m = Math.floor(time % 3600 / 60);
+				var s = time % 60;
+				h = h < 10 ? '0'+h : h;
+				m = m < 10 ? '0'+m : m;
+				s = s < 10 ? '0'+s : s;
+				return h+':'+m+':'+s;
+			},
+			initBounds() {
+				for(var i = 1; i < this.points.length; i+=2) {
+					this.bounds.push(new AMap.Bounds(
+						new AMap.LngLat(this.points[i-1].x, this.points[i-1].y),
+						new AMap.LngLat(this.points[ i ].x, this.points[ i ].y)
+					));
+				}
+			},
+			initRectangles() {
+				for(var i = 0; i < this.bounds.length; i++) {
+					this.rectangles.push(new AMap.Rectangle({
+						bounds: this.bounds[i],
+						strokeOpacity: 0.6,
+						strokeColor: 'red',
+						strokeWeight: 2,
+						fillOpacity: 0,
+						map: this.map
+					}));
+				}
+			},
+			initPointMarkers() {
+				for(var i = 0; i < this.points.length; i++) {
+					this.pointMarkers.push(new AMap.Marker({
+						map: this.map,
+						position: new AMap.LngLat(this.points[i].x, this.points[i].y),
+						icon: new AMap.Icon({
+							size: new AMap.Size(16, 16),
+							image: "http://bus.scyhrt.com/images/point.png",
+							imageSize: new AMap.Size(16, 16)
+						}),
+						offset: new AMap.Pixel(-8, -8),
+						draggable: true
+					}));
+					this.pointMarkers[i].on('dragging', this.onDragPoint);
+					this.pointMarkers[i].on('dragend', () => { this.generateLog(); this.refreshDisplay(); });
+				}
+			},
+			onDragPoint(e) {
+				for(var i = 0; i < this.pointMarkers.length; i++)
+					if(e.target._amap_id === this.pointMarkers[i]._amap_id) break;
+				if(i === this.pointMarkers.length) {
+					console.log("Can not find the pointMaker");
+				} else {
+					var p = this.pointMarkers[i].getPosition();
+					this.points[i] = {x: p.getLng(), y: p.getLat()};
+					var j = i % 2 ? i-1 : i;
+					this.bounds[j/2] = new AMap.Bounds(
+						new AMap.LngLat(this.points[ j ].x, this.points[ j ].y),
+						new AMap.LngLat(this.points[j+1].x, this.points[j+1].y)
+					);
+					this.rectangles[j/2].setBounds(this.bounds[j/2]);
+				}
+			},
+			onResizeWindow() {
+				var div = document.getElementsByClassName("control-log")[0];
+				div.style.height = document.body.clientHeight - div.offsetTop;
+				div = document.getElementsByClassName("control-summary")[0];
+				div.style.height = document.body.clientHeight - div.offsetTop;
+			},
+			onHashChange() {
+				var hash = location.hash.slice(1);
+				if(/(20\d{2})-((0|1)\d)-((0|1|2|3)\d)/.test(hash) && this.date !== hash)
+					this.date = hash;
+			},
+			loadData(cb) {
+				var request = new XMLHttpRequest();
+				request.open("get", 'http://bus.0n0.cc/data/' + this.date + '.json');
+				request.send(null);
+				request.onload = () => {
+					this.bus = JSON.parse(request.responseText); cb();
+					if(Date.now() > this.baseTime && Date.now() - this.baseTime < 90000000)
+						this.realTimer = setInterval(this.loadRealData, 5000);
+				}
+			},
+			loadRealData() {
+				var request = new XMLHttpRequest();
+				request.open("get", "http://gps.scyhrt.com/gps/vehicle/getBusToGPSVehiclePositions");
+				request.send(null);
+				request.onload = () => {
+					var json = JSON.parse(request.responseText);
+					if(json.code === 200) {
+						var tot = json.data.total;
+						var l = json.data.list;
+						var timeArray = [];
+						for(var i = 0; i < tot; i++) {
+							for(var j = 0; j < tot; j++)
+								if(this.bus[j].id === l[i].id) break;
+							var now = (Date.parse(l[i].gpsTime) - this.baseTime) / 1000;
+							if(j === tot) console.log("can not find the bus " + l[i].cph);
+							else if(!this.bus[j].data.length || now > this.bus[j].data[this.bus[j].data.length-1].t) {
+								this.bus[j].data.push({
+									t: now,
+									x: l[i].lon,
+									y: l[i].lat,
+									v: l[i].velocity
+								});
+								timeArray.push(now);
+								this.endTime = Math.max(this.endTime, now);
+								this.maxSlider = Math.floor(this.endTime / 60) - 1;
+							}
+						}
+						timeArray.sort();
+						for(var ti = 0; ti < timeArray.length; ti++) {
+							var t = timeArray[ti];
+							for(var i = 0; i < this.bus.length; i++)
+								if(t === this.bus[i].data[this.bus[i].data.length-1].t) this.pushLog(i, t, this.bus[i].data.length-1);
+						}
+					}
+				}
+			},
+			calc() {
+				var chepaihao = ["川F00055D", "川F00019D", "川F00186D", "川F00881D", "川F00031D", "川F00065D", "川F00016D", "川F00058D", "川F00056D", "川F00076D"];
+				var minTime = 99999, maxTime = 0;
+				for(var i = 0; i < this.bus.length; i++) {
+					this.bus[i].cphid = chepaihao.indexOf(this.bus[i].cph) + 1;
+					minTime = Math.min(minTime, this.bus[i].data[0].t);
+					maxTime = Math.max(maxTime, this.bus[i].data[this.bus[i].data.length-1].t);
+				}
+
+				this.generateLog();
+				
+				var chargingNum = 0;
+				this.startTime = this.endTime = -1;
+				for(var i = 0; i < this.log.length; i++) {
+					if(this.log[i].area === 0) {
+						if(this.log[i].status === 1) chargingNum++;
+						if(this.log[i].status === 1 && chargingNum === this.bus.length) this.endTime = this.log[i].time;
+						if(this.log[i].status === 0 && chargingNum === this.bus.length && this.startTime < 0) this.startTime = this.log[i].time;
+						if(this.log[i].status === 0) chargingNum--;
+					}
+				}
+				this.startTime = this.startTime < 0 ? minTime : Math.floor(this.startTime / 600) * 600;
+				this.endTime = this.endTime < this.startTime ? maxTime : Math.ceil(this.endTime / 600) * 600;
+
+				this.minSlider = this.startTime / 60;
+				this.maxSlider = this.endTime / 60;
+				this.time = this.startTime;
+				this.refreshDisplay();
+			},
+			generateLog() {
+				var p = []; this.log = [];
+				for(var i = 0; i < this.bus.length; i++) {
+					p.push(0);
+					this.bus[i].area = {a: -1, s: 0};
+				}
+
+				for(var t = 0; t < 25 * 3600; t++) {
+					for(var i = 0; i < this.bus.length; i++) {
+						while(p[i] < this.bus[i].data.length && t > this.bus[i].data[p[i]].t) p[i]++;
+						if(p[i] < this.bus[i].data.length && t === this.bus[i].data[p[i]].t) this.pushLog(i, t, p[i]);
+					}
+				}
+			},
+			pushLog(busId, time, p) {
+				var car = this.bus[busId];
+				var po = new AMap.LngLat(car.data[p].x, car.data[p].y);
+				if(car.area.s && !this.bounds[car.area.a].contains(po)) {
+					this.log.push({
+						time: time,
+						cphId: car.cphid,
+						busId: busId,
+						area: car.area.a,
+						status: 0
+					});
+					car.area.s = 0;
+				}
+				for(var j = 0; j < this.bounds.length; j++) {
+					var trans = this.transfer[j];
+					if(this.bounds[j].contains(po) && trans.from.includes(car.area.a) && car.data[p].v <= trans.maxV) {
+						this.log.push({
+							time: time,
+							cphId: car.cphid,
+							busId: busId,
+							area: j,
+							status: 1
+						});
+						car.area = { a: j, s: 1 };
+					}
+				}
+			},
+			refreshDisplay() {
+				for(var i = 0; i < this.busMarkers.length; i++)
+					this.busMarkers[i].stopMove(), this.busMarkers[i].hide();
+				this.busMarkers = [];
+
+				for(var i = 0; i < this.bus.length; i++) {
+					this.bus[i].lastLogId = -1;
+					var car = this.bus[i];
+					var d = car.data;
+					car.p = 0;
+					while(car.p + 1 < d.length && d[car.p + 1].t <= this.time) car.p++;
+					this.busMarkers.push(new AMap.Marker({
+						map: this.map,
+						position: new AMap.LngLat(d[car.p].x, d[car.p].y),
+						icon: new AMap.Icon({
+							size: new AMap.Size(30, 30),
+							image: './img/' + car.cphid + '.png',
+							imageSize: new AMap.Size(30, 30)
+						}),
+						offset: new AMap.Pixel(-15,-15)
+					}));
+				}
+
+				for(var i = 1; i < this.summary.length; i++)
+					this.summary[i].data = [];
+				for(var i = 0; i < this.log.length; i++) {
+					if(this.log[i].time < this.startTime) continue;
+					if(this.log[i].time > this.time) break;
+					this.addSummary(i);
+				}
+				this.onResizeWindow();
+			},
+			addSummary(i) {
+				this.summary[0].logId = i;
+				var j = this.log[i].area * 2 + 1 - this.log[i].status;
+				for(var k = 1; k < this.summary.length; k++) {
+					var sum = this.summary[k];
+					if(sum.showId[1] === j) {
+						if(sum.showId[0] === j) {
+							var matched = false;
+							if(j === 4 || j === 8) {
+								var q = j + 1;
+								for(var p = this.summary[q].data.length-1; p >= 0; p--) {
+									var d = this.summary[q].data[p];
+									if(d.cphId === this.log[i].cphId && !d.matched) break;
+								}
+								if(p !== -1) {
+									this.summary[q].data[p].matched = true;
+									matched = true;
+								}
+							}
+							sum.data.push({
+								time: this.log[i].time,
+								cphId: this.log[i].cphId,
+								matched: matched
+							});
+						} else {
+							var lastLog = this.log[this.bus[this.log[i].busId].lastLogId];
+							if(lastLog && lastLog.area * 2 + 1 - lastLog.status === sum.showId[0])
+								sum.data.push({
+									time: Math.round((this.log[i].time - lastLog.time) / 60),
+									matched: true
+								});
+						}
+					}
+				}
+				this.bus[this.log[i].busId].lastLogId = i;
+			},
+			startAnimation() {
+				clearInterval(this.timer);
+				if(this.playSpeed)
+					this.timer = setInterval(this.drive, 1000 / this.playSpeed);
+			},
+			drive() {
+				this.time++;
+				if(this.time >= this.endTime) this.playSpeed = 0;
+				else if(this.time >= (Date.now() - this.baseTime) / 1000  - 60) this.playSpeed = 1;
+
+				var p = this.summary[0].logId;
+				while(p < this.log.length && this.log[p].time < this.time) p++;
+				if(p < this.log.length && this.log[p].time === this.time) this.addSummary(p);
+
+				for(var i = 0; i < this.bus.length; i++) {
+					var car = this.bus[i];
+					while(car.p < car.data.length && this.time > car.data[car.p].t) car.p++;
+					if(car.p < car.data.length-1 && this.time === car.data[car.p].t) {
+						var pos = new AMap.LngLat(car.data[car.p+1].x, car.data[car.p+1].y);
+						var dis = this.busMarkers[i].getPosition().distance(pos);
+						this.busMarkers[i].moveTo(pos, dis * 3.6 * this.playSpeed / (car.data[car.p+1].t - this.time));
+					}
+				}
+			},
+			autoScrollLog: async function() {
+				var L = document.getElementsByClassName("control-log")[0];
+				var bottom = L.scrollHeight - L.scrollTop - L.offsetHeight;
+				await this.$nextTick();
+				if(!bottom) L.scrollTop = L.scrollHeight;
+			}
+		}
+	});
+</script>
+
+
+    </body>
+</html>
