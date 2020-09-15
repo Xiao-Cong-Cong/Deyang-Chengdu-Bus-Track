@@ -121,7 +121,7 @@
 			</span>
 		</div>
 		<div class="control-log">
-			<p v-for="item in log" v-show="selectedItem[0][item.cphId] && selectedItem[1][item.area*2+1-item.status] === 1 && time >= item.time && item.time >= startTime">
+			<p v-for="item in log" v-show="selectedItem[0][item.cphId-1] && selectedItem[1][item.area*2+1-item.status] === 1 && time >= item.time && item.time >= startTime">
 				{{formatTime(item.time) + ' ' + item.cphId + '号车 ' + selectedName[1][item.area*2+1-item.status]}}</p>
 		</div>
 		<div class="control-summary" v-show="selectedItem[1][selectedItem[1].length-1]">
@@ -188,9 +188,11 @@
 			},
 			slider() {
 				if(this.slider !== Math.floor(this.time / 60)) {
+					var speed = this.playSpeed;
 					this.playSpeed = 0;
 					this.time = this.slider * 60;
 					this.refreshDisplay();
+					this.playSpeed = speed;
 				}
 			},
 			playSpeed() {
