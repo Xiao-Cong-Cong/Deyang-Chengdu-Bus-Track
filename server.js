@@ -29,6 +29,7 @@ const fs = require('fs');
 const axios = require('axios');
 const sd = require('silly-datetime');
 
+var cnt = 0;
 var bus = [];
 var date = '';
 var time = '';
@@ -105,7 +106,7 @@ function work() {
 			console.log(time + 'Can not get bus position: ' + err);
         });
 		
-	predict(getBeijingTime() / 30000 % bus.length);
+	predict(cnt++ / 6 % bus.length);
 }
 
 function update(busId, time, p) {
