@@ -160,10 +160,10 @@ function predict(busId) {
 			var b = runningBus[i];
 			var d = bus[busId].data;
 			var ori = d[d.length-1].x+','+d[d.length-1].y;
-			var des = poi[b.from^1];
+			var des = poi[b.from^1].x+','+poi[b.from^1].y;
 			var wpo = '';
-			if(!b.from && d[d.length-1].y > 31.103) wpo = poi[2];
-			if(b.from && d[d.length-1].y < 31.100) wpo = poi[3];
+			if(!b.from && d[d.length-1].y > 31.103) wpo = poi[2].x+','+poi[2].y;
+			if(b.from && d[d.length-1].y < 31.100) wpo = poi[3].x+','+poi[3].y;
 			var url = 'http://restapi.amap.com/v3/direction/driving?origin='+ori+'&destination='+des+
 					  '&waypoints='+wpo+'&s=rsv3&key=74ad0628ee4b58175f67dc5068bb8b5a&nosteps=1';
 			console.log(time + ' ' + busId + ' ' + url);/////////////////////////////////////////////////
@@ -180,7 +180,7 @@ function predict(busId) {
 				
 				// write runningBus
 				fs.writeFile('./dy3/runningBus.json', JSON.stringify(runningBus), 'utf8', err => {console.log(err)});
-			}).catch(err => {console.log(time + 'Amap axios error: ' + err);});
+			}).catch(err => {console.log(time + ' Amap axios error: ' + err);});
 		}
 }
 
