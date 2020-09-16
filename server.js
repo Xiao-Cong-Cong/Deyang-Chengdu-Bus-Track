@@ -135,7 +135,7 @@ function update(busId, time, p) {
 					if((runningBus[i].from === 0 && j !== 4) || runningBus[i].from === 1) {
 						runningBus.splice(i, 1);
 						break;
-					}						
+					}
 		}
 	}
 }
@@ -173,15 +173,15 @@ function predict(busId) {
 				else {
 					var p = res.data.route.paths[0];
 					var t = Math.round((getBeijingTime() - baseTime) / 1000);
-					b.predictTime = t + p.duration;
-					b.leftDistance = p.distance;
+					b.predictTime = t + parseInt(p.duration);
+					b.leftDistance = parseInt(p.distance);
 					
 					// write log
 					var str = JSON.stringify({time: t, data: b}) + ',\n';
-					fs.appendFile('./pred/' + date + '.json', str, 'utf8', err => {console.log(err)});
+					fs.appendFile('./pred/' + date + '.json', str, 'utf8', err => {if(err) console.log(err)});
 					
 					// write runningBus
-					fs.writeFile('./dy3/runningBus.json', JSON.stringify(runningBus), 'utf8', err => {console.log(err)});
+					fs.writeFile('./dy3/runningBus.json', JSON.stringify(runningBus), 'utf8', err => {if(err) console.log(err)});
 				}
 			}).catch(err => {console.log(time + ' Amap axios error: ' + err);});
 		}
