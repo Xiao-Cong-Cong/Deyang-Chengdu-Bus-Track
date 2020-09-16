@@ -170,17 +170,19 @@ function predict(busId) {
 			console.log(time + ' ' + busId + ' ' + url);/////////////////////////////////////////////////
 			axios.get(url).then(res => {
 				if(!res.data.status) console.log(time + 'Get amap data err: ' + res.data.info);
-				var p = res.data.route.paths[0];
-				var t = Math.round((getBeijingTime() - baseTime) / 1000);
-				b.predictTime = t + p.duration;
-				b.leftDistance = p.distance;
-				
-				// write log
-				var str = JSON.stringify({t: t, i: bus[busId].id, f: b.from, d: b.leftDistance, p: b.predictTime});
-				fs.appendFile('./pred/' + date + '.json', str, 'utf8', err => {console.log(err)});
-				
-				// write runningBus
-				fs.writeFile('./dy3/runningBus.json', JSON.stringify(runningBus), 'utf8', err => {console.log(err)});
+				else {
+					var p = res.data.route.paths[0];
+					var t = Math.round((getBeijingTime() - baseTime) / 1000);
+					b.predictTime = t + p.duration;
+					b.leftDistance = p.distance;
+					
+					// write log
+					var str = JSON.stringify({time: t, data: b}) + ',\n';
+					fs.appendFile('./pred/' + date + '.json', str, 'utf8', err => {console.log(err)});
+					
+					// write runningBus
+					fs.writeFile('./dy3/runningBus.json', JSON.stringify(runningBus), 'utf8', err => {console.log(err)});
+				}
 			}).catch(err => {console.log(time + ' Amap axios error: ' + err);});
 		}
 }
