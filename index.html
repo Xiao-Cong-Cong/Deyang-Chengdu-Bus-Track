@@ -179,9 +179,7 @@
 			},
 			time() {
 				this.slider = Math.min(Math.floor(this.time / 60), this.maxSlider);
-				this.autoScrollLog();
 			},
-			selectedItem() { this.autoScrollLog(); },
 			slider() {
 				if(this.slider !== Math.floor(this.time / 60)) {
 					var speed = this.playSpeed;
@@ -254,7 +252,7 @@
 			this.initPointMarkers();
 
 			this.onHashChange();
-			window.onresize = this.onResizeWindow;
+			// window.onresize = this.onResizeWindow;
 			window.onhashchange = this.onHashChange;
 		},
 		methods: {
@@ -382,7 +380,7 @@
 					}
 				}
 
-				this.predict((this.loadRealDataCount++) % this.bus.length);
+				this.predict((this.loadRealDataCount++) / 6 % this.bus.length);
 			},
 			calc() {
 				var chepaihao = ["川F00055D", "川F00019D", "川F00186D", "川F00881D", "川F00031D", "川F00065D", "川F00016D", "川F00058D", "川F00056D", "川F00076D"];
@@ -502,7 +500,6 @@
 					if(this.log[i].time > this.time) break;
 					this.addSummary(i);
 				}
-				this.onResizeWindow();
 			},
 			addSummary(i) {
 				this.summary[0].logId = i;
@@ -563,12 +560,6 @@
 						this.busMarkers[i].moveTo(pos, dis * 3.6 * this.playSpeed / (car.data[car.p+1].t - this.time));
 					}
 				}
-			},
-			autoScrollLog: async function() {
-				var L = document.getElementsByClassName("control-log")[0];
-				var bottom = L.scrollHeight - L.scrollTop - L.offsetHeight;
-				await this.$nextTick();
-				if(!bottom) L.scrollTop = L.scrollHeight;
 			},
 			predict(busId) {
 				// this.runningBus = [
