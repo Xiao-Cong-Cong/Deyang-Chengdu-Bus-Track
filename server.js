@@ -164,6 +164,7 @@ function predict(busId) {
 			if(b.from && d[d.length-1].y < 31.100) wpo = poi[3];
 			var url = 'http://restapi.amap.com/v3/direction/driving?origin='+ori+'&destination='+des+
 					  '&waypoints='+wpo+'&s=rsv3&key=74ad0628ee4b58175f67dc5068bb8b5a&nosteps=1';
+			console.log(url);										////////////////
 			axios.get(url).then(res => {
 				if(!res.data.status) console.log(time + 'Get amap data err: ' + res.data.info);
 				var p = res.data.route.paths[0];
@@ -173,10 +174,10 @@ function predict(busId) {
 				
 				// write log
 				var str = JSON.stringify({t: t, i: bus[busId].id, f: b.from, d: b.leftDistance, p: b.predictTime});
-				fs.appendFile('./pred/' + date + '.json', str, 'utf8', err => {});
+				fs.appendFile('./pred/' + date + '.json', str, 'utf8', err => {console.log(err)});
 				
 				// write runningBus
-				fs.writeFile('./dy3/runningBus.json', JSON.stringify(runningBus), 'utf8', err => {});
+				fs.writeFile('./dy3/runningBus.json', JSON.stringify(runningBus), 'utf8', err => {console.log(err)});
 			}).catch(err => {console.log(time + 'Amap axios error: ' + err);});
 		}
 }
