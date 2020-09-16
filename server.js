@@ -104,6 +104,8 @@ function work() {
         }).catch(err => {
 			console.log(time + 'Can not get bus position: ' + err);
         });
+		
+	predict(getBeijingTime() / 30000 % bus.length);
 }
 
 function update(busId, time, p) {
@@ -164,7 +166,7 @@ function predict(busId) {
 			if(b.from && d[d.length-1].y < 31.100) wpo = poi[3];
 			var url = 'http://restapi.amap.com/v3/direction/driving?origin='+ori+'&destination='+des+
 					  '&waypoints='+wpo+'&s=rsv3&key=74ad0628ee4b58175f67dc5068bb8b5a&nosteps=1';
-			console.log(url);										////////////////
+			console.log(time + ' ' + busId + ' ' + url);/////////////////////////////////////////////////
 			axios.get(url).then(res => {
 				if(!res.data.status) console.log(time + 'Get amap data err: ' + res.data.info);
 				var p = res.data.route.paths[0];
@@ -186,4 +188,4 @@ function getBeijingTime() {
 	return Date.now() + (480 + new Date().getTimezoneOffset()) * 60 * 1000;
 }
 
-setInterval(work, 6000);
+setInterval(work, 5000);
