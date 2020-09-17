@@ -208,7 +208,8 @@ a {
             };
         },
         mounted() {
-            setInterval(this.update(), 60000);
+            this.update();
+            setInterval(this.update, 60000);
         },
         methods: {
             onClick(i) {
