@@ -1,1 +1,243 @@
-<h2>Coming soon</h2>
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=0,viewport-fit=cover">
+    <title>德阳地铁3号线摆渡车</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<style>
+* {
+    margin: 0;
+    padding: 0;
+}
+.container {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    overflow: hidden;
+    color: rgba(0,0,0,0.9);
+}
+.page.js_show {
+    opacity: 1;
+}
+.page {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.page {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+    opacity: 0;
+    z-index: 1;
+}
+.page, body {
+    background-color: #ededed;
+}
+.page__hd {
+    padding: 40px;
+}
+.page.home .page__title {
+    /* font-size: 0; */
+    margin-bottom: 15px;
+}
+.page__title {
+    text-align: left;
+    font-size: 20px;
+    font-weight: 400;
+}
+.page__desc {
+    margin-top: 4px;
+    color: rgba(0,0,0,0.5);
+    text-align: left;
+    font-size: 14px;
+}
+.page__bd_spacing {
+    padding: 0 16px;
+}
+ul {
+    list-style: none;
+}
+.page.home .page__bd li:first-child {
+    margin-top: 0;
+}
+.page.home .page__bd li {
+    margin: 8px 0;
+    background-color: #ffff;
+    overflow: hidden;
+    border-radius: 2px;
+    cursor: pointer;
+}
+.page.home .page__bd li.js_show .weui-flex {
+    opacity: .5;
+}
+.page.home .weui-flex {
+    padding: 20px;
+    -webkit-box-align: center;
+    -webkit-align-items: center;
+    align-items: center;
+    -webkit-transition: .3s;
+    transition: .3s;
+}
+.weui-flex {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: flex;
+}
+.weui-flex__item {
+    -webkit-box-flex: 1;
+    -webkit-flex: 1;
+    flex: 1;
+}
+.page.home .page__category {
+    height: 0;
+    overflow: hidden;
+}
+.page.home .weui-cells {
+    margin-top: 0;
+}
+.page.home .page__category-content {
+    opacity: 0;
+    -webkit-transform: translateY(-50%);
+    transform: translateY(-50%);
+    -webkit-transition: .3s;
+    transition: .3s;
+}
+.weui-cells {
+    margin-top: 8px;
+    background-color: #fff;
+    background-color: #ffff;
+    line-height: 1.41176471;
+    font-size: 17px;
+    overflow: hidden;
+    position: relative;
+}
+.page.home .weui-cell {
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+.weui-cell_access {
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+    color: inherit;
+}
+.weui-cell {
+    padding: 16px;
+    position: relative;
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-box-align: center;
+    -webkit-align-items: center;
+    align-items: center;
+}
+
+.page.home .page__bd li.js_show .page__category {
+    height: auto;
+}
+.page.home .page__bd li.js_show .page__category-content {
+    opacity: 1;
+    -webkit-transform: translateY(0);
+    transform: translateY(0);
+}
+.weui-cell_access {
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+    color: inherit;
+}
+a {
+    text-decoration: none;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+</style>
+</head>
+<body ontouchstart>
+    <div class="container" id="container">
+        <div class="page home js_show">
+            <div class="page__hd">
+                <h1 class="page__title">
+                    德阳地铁3号线摆渡车
+                </h1>
+                <p class="page__desc">票价：6 元</p>
+                <p class="page__desc">文庙：6:30 - 21:30</p>
+                <p class="page__desc">新都：7:50 - 23:00</p>
+            </div>
+            <div class="page__bd page__bd_spacing">
+                <ul>
+                    <li v-for="(item, i) in displayItem" :class="{'js_show': unfold === i+1}" @click="onClick(i+1)">
+                        <div class="weui-flex js_category">
+                            <p class="weui-flex__item">{{item.title}}</p>
+                        </div>
+                        <div class="page__category js_categoryInner" data-height="280" style="">
+                            <div class="weui-cells page__category-content">
+                                <div v-for="c in item.content" class="weui-cell weui-cell_active">
+                                    <div class="weui-cell__bd">
+                                        <p>{{c}}</p>
+                                    </div>
+                                    <div class="weui-cell__ft"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+<script>
+    var app = new Vue({
+        el: '#container',
+        data() {
+            return {
+                unfold: 0,
+                displayItem: [
+                    {
+                        title: '德阳文庙广场',
+                        content: []
+                    },
+                    {
+                        title: '成都医学院',
+                        content: []
+                    }
+                ]
+            };
+        },
+        mounted() {
+            setInterval(this.update(), 60000);
+        },
+        methods: {
+            onClick(i) {
+                this.unfold = this.unfold === i ? 0 : i;
+            },
+            update() {
+                var request = new XMLHttpRequest();
+				request.open("get", "./runningBus.json");
+				request.send(null);
+				request.onload = () => {
+                    var s = JSON.parse(request.responseText);
+                    this.displayItem[0].content = [];
+                    this.displayItem[1].content = [];
+                    for(var i = 0; i < s.length; i++)
+                        this.displayItem[s[i].from^1].content.push(('0'+s[i].cphId).slice(-2)+'号车 预计 '+
+                            this.formatTime(s[i].predictTime).slice(0,5) + ' 到达');
+                }
+            },
+            formatTime(time) {
+				var h = Math.floor(time / 3600) % 24;
+				var m = Math.floor(time % 3600 / 60);
+				var s = time % 60;
+				h = h < 10 ? '0'+h : h;
+				m = m < 10 ? '0'+m : m;
+				s = s < 10 ? '0'+s : s;
+				return h+':'+m+':'+s;
+            }
+        }
+    });
+</script>
+</body>
+</html>
