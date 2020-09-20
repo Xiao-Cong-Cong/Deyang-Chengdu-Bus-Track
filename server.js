@@ -101,7 +101,7 @@ function work() {
 					d.splice(l-2, 1);
 			}
 			
-			fs.writeFile('./data/' + date + '.json', JSON.stringify(bus), 'utf8', err => {});
+			fs.writeFile('./data/' + date + '.json', JSON.stringify(bus), 'utf8', err => {if(err) console.log(err)});
         }).catch(err => {
 			console.log(time + 'Can not get bus position: ' + err);
         });
@@ -161,6 +161,7 @@ function predict(busId) {
 		if(runningBus[i].busId === busId) {
 			var b = runningBus[i];
 			var d = bus[busId].data;
+			var tim = d[d.length-1].t;
 			var ori = d[d.length-1].x+','+d[d.length-1].y;
 			var des = poi[b.from^1].x+','+poi[b.from^1].y;
 			var wpo = '';
@@ -172,12 +173,11 @@ function predict(busId) {
 				if(!res.data.status) console.log(time + 'Get amap data err: ' + res.data.info);
 				else {
 					var p = res.data.route.paths[0];
-					var t = Math.round((getBeijingTime() - baseTime) / 1000);
-					b.predictTime = t + parseInt(p.duration);
+					b.predictTime = tim + parseInt(p.duration);
 					b.leftDistance = parseInt(p.distance);
 					
 					// write log
-					var str = JSON.stringify({time: t, data: b}) + ',\n';
+					var str = JSON.stringify({time: tim, data: b}) + ',\n';
 					fs.appendFile('./pred/' + date + '.json', str, 'utf8', err => {if(err) console.log(err)});
 				}
 			}).catch(err => {console.log(time + ' Amap axios error: ' + err);});
