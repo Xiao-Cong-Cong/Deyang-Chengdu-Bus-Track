@@ -183,6 +183,8 @@
 				realTimer: null,
 				WMqueue: null,
 				XDqueue: null,
+				WMqueueNumAddon: 0,
+				XDqueueNumAddon: 0,
 				WMqueueNumDisplay: "",
 				XDqueueNumDisplay: "",
 			}
@@ -465,19 +467,43 @@
 				}
 			},
 			refreshDisplay() {
-				for(var i = 0; i < this.busMarkers.length; i++)
-					this.busMarkers[i].stopMove(), this.busMarkers[i].hide();
-				this.busMarkers = [];
-
+				for(var i = 0; i < this.busMarkers.length; i++) {
+					this.busMarkers[i].stopMove();
+					this.busMarkers[i].hide();
+				}
 				for(var i = 0; i < this.bus.length; i++) {
 					this.bus[i].lastLogId = -1;
 					var car = this.bus[i];
 					var d = car.data;
 					car.p = 0;
-					while(car.p + 1 < d.length && d[car.p + 1].t <= this.time) car.p++;
+				}
+				this.busMarkers = [];
+				for(var i = 1; i < this.summary.length; i++)
+					this.summary[i].data = [];
+
+				this.WMqueueNumAddon = 0;
+				this.XDqueueNumAddon = 0;
+				var logId = 0;
+				for(var t = 6 * 3600; t <= this.time; t+=10) {
+					for(var i = 0; i < this.bus.length; i++) {
+						var car = this.bus[i];
+						while(car.p + 1 < car.data.length && car.data[car.p + 1].t <= t) car.p++;
+					}
+					for(;logId < this.log.length; logId++) {
+						if(this.log[logId].time < this.startTime) continue;
+						if(this.log[logId].time > t) break;
+						this.addSummary(logId);
+					}
+					this.updateQueueNum(t);
+				}
+				// console.log(this.WMqueueNumAddon, this.XDqueueNumAddon); /////////////////////
+				this.updateQueueNum();
+
+				for(var i = 0; i < this.bus.length; i++) {
+					var car = this.bus[i];
 					this.busMarkers.push(new AMap.Marker({
 						map: this.map,
-						position: new AMap.LngLat(d[car.p].x, d[car.p].y),
+						position: new AMap.LngLat(car.data[car.p].x, car.data[car.p].y),
 						icon: new AMap.Icon({
 							size: new AMap.Size(30, 30),
 							image: './img/' + car.cphid + '.png',
@@ -486,15 +512,6 @@
 						offset: new AMap.Pixel(-15,-15)
 					}));
 				}
-
-				for(var i = 1; i < this.summary.length; i++)
-					this.summary[i].data = [];
-				for(var i = 0; i < this.log.length; i++) {
-					if(this.log[i].time < this.startTime) continue;
-					if(this.log[i].time > this.time) break;
-					this.addSummary(i);
-				}
-				this.updateQueueNum();
 			},
 			addSummary(i) {
 				this.summary[0].logId = i;
@@ -559,7 +576,8 @@
 
 				this.updateQueueNum();
 			},
-			updateQueueNum() {
+			updateQueueNum(time) {
+				if(!time) time = this.time;
 				var totalRuns = [48, 38, 36, 35, 38, 48, 46];
 				var day = new Date(this.date).getDay();
 				// 5 9
@@ -583,11 +601,13 @@
 						else uncertain++;
 					}
 				
-				var WMqueueNum = this.WMqueue.getTotalNumberBefore(this.time) * totalRuns[day] / 50;
+				var WMqueueNum = this.WMqueue.getTotalNumberBefore(time) * totalRuns[day] / 50;
 				var st = WMqueueNum - (departure + uncertain) * 38;
 				var en = WMqueueNum - departure * 38;
-				st = Math.max(Math.round(st), 0);
-				en = Math.max(Math.round(en), 0);
+				// console.log(st, en, departure, WMqueueNum);	////////////////////////////////////
+				if(en < 0) this.WMqueueNumAddon = Math.min(this.WMqueueNumAddon, en);
+				st = Math.max(Math.round(st - this.WMqueueNumAddon), 0);
+				en = Math.max(Math.round(en - this.WMqueueNumAddon), 0);
 				if(st === en) this.WMqueueNumDisplay = st;
 				else this.WMqueueNumDisplay = st + ' - ' + en;
 
@@ -613,11 +633,13 @@
 						else uncertain++;
 					}
 				
-				var XDqueueNum = this.XDqueue.getTotalNumberBefore(this.time) * totalRuns[day] / 50;
+				var XDqueueNum = this.XDqueue.getTotalNumberBefore(time) * totalRuns[day] / 50;
 				st = XDqueueNum - (departure + uncertain) * 38;
 				en = XDqueueNum - departure * 38;
-				st = Math.max(Math.round(st), 0);
-				en = Math.max(Math.round(en), 0);
+				// console.log(st, en, departure, XDqueueNum);	////////////////////////////////////
+				if(en < 0) this.XDqueueNumAddon = Math.min(this.XDqueueNumAddon, en);
+				st = Math.max(Math.round(st - this.XDqueueNumAddon), 0);
+				en = Math.max(Math.round(en - this.XDqueueNumAddon), 0);
 				if(st === en) this.XDqueueNumDisplay = st;
 				else this.XDqueueNumDisplay = st + ' - ' + en;
 
