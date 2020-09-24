@@ -1,0 +1,53 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=0,viewport-fit=cover">
+    <title>德阳摆渡车人流预测</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.min.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <pre>{{result}}</pre>
+        <input id="content" v-model="content" @keyup.enter="submit">
+        <!-- <p>{{info}}</p> -->
+    </div>
+<script>
+    var app = new Vue({
+        el: '#app',
+        data() {
+            return {
+                content: '',
+                result: '',
+                // info: ''
+            };
+        },
+        mounted() {
+            this.getData();
+        },
+        methods: {
+            submit() {
+				if(!this.content) return;
+				document.getElementById('content').setAttribute('disabled', 'disabled');
+                var data = {
+                    time: Date.now(),
+                    data: this.content
+                }
+                axios.post('../api/submitData', data)
+                    .then(res => {
+						this.getData();
+						this.content = '';
+						document.getElementById('content').removeAttribute('disabled');
+					})
+            },
+            getData() {
+                axios.get('../yuce.json')
+                    .then(res => this.result = res.data)
+            }
+        }
+    });
+</script>
+</body>
+</html>
