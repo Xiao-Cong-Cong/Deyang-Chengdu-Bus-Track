@@ -103,7 +103,7 @@ function work() {
 			
 			fs.writeFile('./data/' + date + '.json', JSON.stringify(bus), 'utf8', err => {if(err) console.log(err)});
         }).catch(err => {
-			console.log(time + 'Can not get bus position: ' + err);
+			console.log(time + ' Can not get bus position: ' + err);
         });
 		
 	predict(cnt++ / 6 % bus.length);
@@ -152,10 +152,10 @@ function predict(busId) {
 		if(d[d.length-1].y > 31.1312) runningBus.splice(i,1);
 	}
 	
-	var poi = [ {x: 104.3935, y: 31.1267},
-				{x: 104.1962, y: 30.8168},
-				{x: 104.3896, y: 31.1021},
-				{x: 104.3895, y: 31.1010} ];
+	var poi = [ {x: 104.3935, y: 31.1267},		// 文庙
+				{x: 104.1962, y: 30.8168},		// 新都
+				{x: 104.3896, y: 31.1021},		// 文庙去五洲广场
+				{x: 104.3895, y: 31.1010} ];	// 五洲广场去文庙
 				
 	for(var i = 0; i < runningBus.length; i++)
 		if(runningBus[i].busId === busId) {
