@@ -272,9 +272,10 @@
 				{showId: [8,8], title: '文庙到达', raw: 1, data: []},
 				{showId: [7,8], title: '新 -> 文', raw: 0, data: []}
 			]
-			this.WMqueue = new PeopleQueue([0, 6, 6.5, 7, 10, 12, 13, 17, 19, 20, 21, 21.5], [0, 1.5, 2, 2.5, 2, 1.5, 2, 2.5, 2, 1.5, 0.5, 0]);
-			this.XDqueue = new PeopleQueue([0, 7.5, 8, 9, 15, 19, 21, 22, 22.5, 23], [0, 1.5, 2.5, 2, 2.5, 2, 1.5, 1, 0.5, 0]);
-
+			// this.WMqueue = new PeopleQueue([0, 6, 6.5, 7, 10, 12, 13, 17, 19, 20, 21, 21.5], [0, 1.5, 2, 2.5, 2, 1.5, 2, 2.5, 2, 1.5, 0.5, 0]);
+			// this.XDqueue = new PeopleQueue([0, 7.5, 8, 9, 15, 19, 21, 22, 22.5, 23], [0, 1.5, 2.5, 2, 2.5, 2, 1.5, 1, 0.5, 0]);
+			this.WMqueue = new PeopleQueue([0, 6, 7, 8, 10, 11, 14, 16, 20, 21.5], [0, 1.5, 2, 2.5, 2, 1.5, 2, 2.5, 1, 0]);
+			this.XDqueue = new PeopleQueue([0, 7.5, 9, 14, 16, 19, 21, 22, 23], [0, 1.5, 2, 2.8, 2.5, 2, 1.5, 1, 0]);
 
 			this.map = new AMap.Map("container", {
 				resizeEnable: true,
@@ -584,7 +585,7 @@
 			},
 			updateQueueNum(time) {
 				if(!time) time = this.time;
-				var totalRuns = [48, 38, 36, 35, 38, 48, 46];
+				var totalRuns = [50, 42, 39, 38, 39, 49, 47];
 				var day = new Date(this.date).getDay();
 				// 5 9
 				var departure = 0;
@@ -601,23 +602,22 @@
 				}
 				for(var i = 0; i < 10; i++)
 					if(unmatchedBus[i]) {
-						var d = this.bus[i].data[this.bus[i].p];
+						var b = this.bus[i];
+						var d = b.data[b.p < b.data.length ? b.p : b.data.length - 1];
 						if(d.y >= 31.1305) continue;
-						if(d.y <= 31.1232) departure++;
+						if(d.y <= 31.1232) departure++, unmatchedBus[i] = 0;
 						else uncertain++;
 					}
 				
 				var WMqueueNum = this.WMqueue.getTotalNumberBefore(time) * totalRuns[day] / 50;
 				var st = WMqueueNum - (departure + uncertain) * 38;
 				var en = WMqueueNum - departure * 38;
-				// console.log(st, en, departure, WMqueueNum);	////////////////////////////////////
-				if(en < 0) this.WMqueueNumAddon = Math.min(this.WMqueueNumAddon, en);
 				
-				// update addon according to get-on time
 				var sd = this.summary[5].data;
 				if(sd.length) {
-					var ti = this.WMqueue.getTotalNumberBefore(sd[sd.length-1].time) * totalRuns[day] / 50 - (departure + uncertain) * 38;
-					if(sd[sd.length-1].getOnTime >= 500 && ti >= 0) this.WMqueueNumAddon = Math.max(this.WMqueueNumAddon, ti);
+					var ti = this.WMqueue.getTotalNumberBefore(sd[sd.length-1].time) * totalRuns[day] / 50 - departure * 38;
+					if(!unmatchedBus[sd[sd.length-1].busId] && ti < this.WMqueueNumAddon) this.WMqueueNumAddon = Math.min(this.WMqueueNumAddon, ti);
+					if(sd[sd.length-1].getOnTime >= 500 && ti > this.WMqueueNumAddon) this.WMqueueNumAddon = Math.max(this.WMqueueNumAddon, ti);
 				}
 				
 				st = Math.max(Math.round(st - this.WMqueueNumAddon), 0);
@@ -640,24 +640,23 @@
 				}
 				for(var i = 0; i < 10; i++)
 					if(unmatchedBus[i]) {
-						var d = this.bus[i].data[this.bus[i].p];
+						var b = this.bus[i];
+						var d = b.data[b.p < b.data.length ? b.p : b.data.length - 1];
 						if(d.x >= this.points[12].x && d.x <= this.points[13].x &&
 						   d.y >= this.points[12].y && d.y <= this.points[13].y ) continue;
-						if(d.x >= 104.2104 || d.y >= 30.8298) departure++;
+						if(d.x >= 104.2104 || d.y >= 30.8298) departure++, unmatchedBus[i] = 0;
 						else uncertain++;
 					}
 				
 				var XDqueueNum = this.XDqueue.getTotalNumberBefore(time) * totalRuns[day] / 50;
 				st = XDqueueNum - (departure + uncertain) * 38;
 				en = XDqueueNum - departure * 38;
-				// console.log(st, en, departure, XDqueueNum);	////////////////////////////////////
-				if(en < 0) this.XDqueueNumAddon = Math.min(this.XDqueueNumAddon, en);
-				
-				// update addon according to get-on time
+
 				sd = this.summary[9].data;
 				if(sd.length) {
-					ti = this.XDqueue.getTotalNumberBefore(sd[sd.length-1].time) * totalRuns[day] / 50 - (departure + uncertain) * 38;
-					if(sd[sd.length-1].getOnTime >= 666 && ti >= 0) this.XDqueueNumAddon = Math.max(this.XDqueueNumAddon, ti);
+					ti = this.XDqueue.getTotalNumberBefore(sd[sd.length-1].time) * totalRuns[day] / 50 - departure * 38;
+					if(!unmatchedBus[sd[sd.length-1].busId] && ti < this.XDqueueNumAddon) this.XDqueueNumAddon = Math.min(this.XDqueueNumAddon, ti);
+					if(sd[sd.length-1].getOnTime >= 666 && ti > this.XDqueueNumAddon) this.XDqueueNumAddon = Math.max(this.XDqueueNumAddon, ti);
 				}
 				
 				st = Math.max(Math.round(st - this.XDqueueNumAddon), 0);
