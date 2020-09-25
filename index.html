@@ -538,6 +538,12 @@
 								cphId: this.log[i].cphId,
 								matched: matched
 							});
+							// add get-on time
+							if(j === 3 || j === 7) {
+								var lastLog = this.log[this.bus[this.log[i].busId].lastLogId];
+								if(lastLog && lastLog.area * 2 + 1 - lastLog.status === j - 1)
+									sum.data[sum.data.length-1].getOnTime = this.log[i].time - lastLog.time;
+							}
 						} else {
 							var lastLog = this.log[this.bus[this.log[i].busId].lastLogId];
 							if(lastLog && lastLog.area * 2 + 1 - lastLog.status === sum.showId[0])
@@ -606,6 +612,14 @@
 				var en = WMqueueNum - departure * 38;
 				// console.log(st, en, departure, WMqueueNum);	////////////////////////////////////
 				if(en < 0) this.WMqueueNumAddon = Math.min(this.WMqueueNumAddon, en);
+				
+				// update addon according to get-on time
+				var sd = this.summary[5].data;
+				if(sd.length) {
+					var ti = this.WMqueue.getTotalNumberBefore(sd[sd.length-1].time) * totalRuns[day] / 50 - (departure + uncertain) * 38;
+					if(sd[sd.length-1].getOnTime >= 500 && ti >= 0) this.WMqueueNumAddon = Math.max(this.WMqueueNumAddon, ti);
+				}
+				
 				st = Math.max(Math.round(st - this.WMqueueNumAddon), 0);
 				en = Math.max(Math.round(en - this.WMqueueNumAddon), 0);
 				if(st === en) this.WMqueueNumDisplay = st;
@@ -638,6 +652,14 @@
 				en = XDqueueNum - departure * 38;
 				// console.log(st, en, departure, XDqueueNum);	////////////////////////////////////
 				if(en < 0) this.XDqueueNumAddon = Math.min(this.XDqueueNumAddon, en);
+				
+				// update addon according to get-on time
+				sd = this.summary[9].data;
+				if(sd.length) {
+					ti = this.XDqueue.getTotalNumberBefore(sd[sd.length-1].time) * totalRuns[day] / 50 - (departure + uncertain) * 38;
+					if(sd[sd.length-1].getOnTime >= 666 && ti >= 0) this.XDqueueNumAddon = Math.max(this.XDqueueNumAddon, ti);
+				}
+				
 				st = Math.max(Math.round(st - this.XDqueueNumAddon), 0);
 				en = Math.max(Math.round(en - this.XDqueueNumAddon), 0);
 				if(st === en) this.XDqueueNumDisplay = st;
