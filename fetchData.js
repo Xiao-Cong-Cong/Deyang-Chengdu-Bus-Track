@@ -23,8 +23,8 @@ function work() {
 	
     axios.get('http://gps.scyhrt.com/gps/vehicle/getBusToGPSVehiclePositions')
         .then(res => {
-			// Save raw data every 5 seconds
-			if(count % 5 === 1) {
+			// Save raw data every 6 seconds
+			if(count % 3 === 1) {
 				var str = JSON.stringify({time: time,  data: res.data}) + ',\n';
 				fs.appendFile(rawFilePath, str, 'utf8', err => {if(err) console.log(err)});
 			}
@@ -77,12 +77,11 @@ function work() {
 					d.splice(l-2, 1);
 			}
 			
-			// Save bus every 5 seconds
-			if(count % 5 === 3)
-				fs.writeFile(filePath, JSON.stringify(bus), 'utf8', err => {if(err) console.log(err)});
+			// Save bus every 2 seconds
+			fs.writeFile(filePath, JSON.stringify(bus), 'utf8', err => {if(err) console.log(err)});
         }).catch(err => {
             console.log(time + ' Can not get bus position: ' + err);
         });
 }
 
-setInterval(work, 1000);
+setInterval(work, 2000);
