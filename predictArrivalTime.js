@@ -31,21 +31,21 @@ const fs = require('fs');
 const axios = require('axios');
 const sd = require('silly-datetime');
 
-var myBus = [];
-var runningBus = [];
+var myBus = [], date, now;
+var runningBus = [], time;
 
 function work() {
 	var BJtime = Date.now() + (480 + new Date().getTimezoneOffset()) * 60 * 1000;
-    var myDate = new Date(BJtime);
-    var h = myDate.getHours();
-    if(h > 0 && h < 6) { myBus = []; runningBus = []; return; }
+	var myDate = new Date(BJtime);
+	var h = myDate.getHours();
+	if(h > 0 && h < 6) { myBus = []; runningBus = []; return; }
 	
-    var date = sd.format(myDate - 3600000, 'YYYY-MM-DD');
-    var time = sd.format(myDate, 'YYYY-MM-DD HH:mm:ss');
-	var now = Math.round((BJtime - Date.parse(date + '00:00:00')) / 1000);
+	date = sd.format(myDate - 3600000, 'YYYY-MM-DD');
+	time = sd.format(myDate, 'YYYY-MM-DD HH:mm:ss');
+	now = Math.round((BJtime - Date.parse(date + ' 00:00:00')) / 1000);
 	
 	try {	// Get bus data
-		var bus = fs.readFileSync('./data/' + date + '.json');
+		var bus = JSON.parse(fs.readFileSync('./data/' + date + '.json'));
 		if(!myBus.length) myBus = bus;
 		else {
 			for(var i = 0; i < bus.length; i++) {
@@ -114,33 +114,7 @@ function work() {
 			for(var j = 0; j < runningBus.length; j++)
 				if(runningBus[j].busId === busId) break;
 			if(j === runningBus.length) runningBus.push(predictList[i]);
-			
-			// Predict time
-			var b = runningBus[j];
-			var d = myBus[busId].data, wpo = '';
-			
-			var ori = d[d.length-1].x+','+d[d.length-1].y;
-			var des = poi[b.from^1].x+','+poi[b.from^1].y;
-			if(!b.from && d[d.length-1].y > 31.103) wpo = poi[2].x+','+poi[2].y;
-			if( b.from && d[d.length-1].y < 31.100) wpo = poi[3].x+','+poi[3].y;
-			
-			var url = 'http://restapi.amap.com/v3/direction/driving?origin='+ori+'&destination='+des+
-					  '&waypoints='+wpo+'&s=rsv3&key=74ad0628ee4b58175f67dc5068bb8b5a&nosteps=1';
-			
-			// Call Amap driving
-			axios.get(url).then(res => {
-				if(!res.data.status) console.log(time + ' Get Amap data err: ' + res.data.info);
-				else {
-					var p = res.data.route.paths[0];
-					b.predictTime = d[d.length-1].t + parseInt(p.duration);
-					b.leftDistance = parseInt(p.distance);
-					myBus[busId].lastUpdate = now;
-					
-					// Log successful prediction
-					var str = JSON.stringify({time: d[d.length-1].t, data: b}) + ',\n';
-					fs.appendFile('./pred/' + date + '.json', str, 'utf8', err => {if(err) console.log(err)});
-				}
-			}).catch(err => {console.log(time + ' Amap axios error: ' + err)});
+			predict(j);			
 		}
 	}
 	
@@ -151,6 +125,34 @@ function work() {
 function contain(i, x, y) {
 	return points[i*2].x <= x && x <= points[i*2+1].x &&
 		   points[i*2].y <= y && y <= points[i*2+1].y;
+}
+
+function predict(runningBusId) {
+	var b = runningBus[runningBusId];
+	var d = myBus[b.busId].data, wpo = '';
+	
+	var ori = d[d.length-1].x+','+d[d.length-1].y;
+	var des = poi[b.from^1].x+','+poi[b.from^1].y;
+	if(!b.from && d[d.length-1].y > 31.103) wpo = poi[2].x+','+poi[2].y;
+	if( b.from && d[d.length-1].y < 31.100) wpo = poi[3].x+','+poi[3].y;
+	
+	var url = 'http://restapi.amap.com/v3/direction/driving?origin='+ori+'&destination='+des+
+			  '&waypoints='+wpo+'&s=rsv3&key=74ad0628ee4b58175f67dc5068bb8b5a&nosteps=1';
+	
+	// Call Amap driving
+	axios.get(url).then(res => {
+		if(!res.data.status) console.log(time + ' Get Amap data err: ' + res.data.info);
+		else {
+			var p = res.data.route.paths[0];
+			b.predictTime = d[d.length-1].t + parseInt(p.duration);
+			b.leftDistance = parseInt(p.distance);
+			myBus[b.busId].lastUpdate = now;
+			
+			// Log successful prediction
+			var str = JSON.stringify({time: d[d.length-1].t, data: b}) + ',\n';
+			fs.appendFile('./pred/' + date + '.json', str, 'utf8', err => {if(err) console.log(err)});
+		}
+	}).catch(err => {console.log(time + ' Amap axios error: ' + err)});
 }
 
 setInterval(work, 5000);
