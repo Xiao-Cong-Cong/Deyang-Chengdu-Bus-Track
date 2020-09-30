@@ -187,6 +187,7 @@
 				XDqueueNumAddon: 0,
 				WMqueueNumDisplay: "",
 				XDqueueNumDisplay: "",
+				trafficLayer: null,
 			}
 		},
 		computed: {
@@ -209,6 +210,8 @@
 			},
 			time() {
 				this.slider = Math.min(Math.floor(this.time / 60), this.maxSlider);
+				this.trafficLayer.hide();
+				if(this.time >= (Date.now() - this.baseTime) / 1000  - 66) this.trafficLayer.show();
 			},
 			slider() {
 				if(this.slider !== Math.floor(this.time / 60)) {
@@ -282,6 +285,14 @@
 				center: [104.30, 30.9666],
 				zoom: 11
 			});
+			this.trafficLayer = new AMap.TileLayer.Traffic({
+				zIndex: 10,
+				autoRefresh: true,
+				interval: 180
+			});
+			this.trafficLayer.setMap(this.map);
+			this.trafficLayer.hide();
+
 			this.initBounds();
 			this.initRectangles();
 
@@ -496,10 +507,10 @@
 						if(this.log[logId].time > t) break;
 						this.addSummary(logId);
 					}
-					this.updateQueueNum(t);
+					// this.updateQueueNum(t);
 				}
 				// console.log(this.WMqueueNumAddon, this.XDqueueNumAddon); /////////////////////
-				this.updateQueueNum();
+				// this.updateQueueNum();
 
 				for(var i = 0; i < this.bus.length; i++) {
 					var car = this.bus[i];
@@ -582,7 +593,7 @@
 					}
 				}
 
-				this.updateQueueNum();
+				// this.updateQueueNum();
 			},
 			updateQueueNum(time) {
 				if(!time) time = this.time;
