@@ -3,8 +3,8 @@ const axios = require('axios');
 const sd = require('silly-datetime');
 const cph = ["川F00055D", "川F00019D", "川F00186D", "川F00881D", "川F00031D",
 			 "川F00065D", "川F00016D", "川F00058D", "川F00056D", "川F00076D",
-			 "20NQ30021", "0012", 	   "20NQ30013", "20NQ30014", "20NQ30015",
-			 "20NQ30016", "20NQ30017", "20NQ30018", "20NQ30019", "20NQ30020"];
+			 "川F00067D", "川F00035D", "川F00020D", "川F00050D", "川F00075D",
+			 "川F00013D", "川F00071D", "川F00036D", "川F00021D", "川F10086D"];
 // TODO: consider using id instead of cph
 
 var bus = [];
