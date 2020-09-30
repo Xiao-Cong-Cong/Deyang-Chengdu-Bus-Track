@@ -417,7 +417,7 @@
 						if(this.log[i].status === 0) chargingNum--;
 					}
 				}
-				this.startTime = this.startTime < 0 ? minTime : Math.floor(this.startTime / 600) * 600;
+				this.startTime = this.startTime < 0 ? Math.max(6 * 3600, minTime) : Math.floor(this.startTime / 600) * 600;
 				this.endTime = this.endTime < this.startTime ? maxTime : Math.ceil(this.endTime / 600) * 600;
 
 				this.minSlider = this.startTime / 60;
