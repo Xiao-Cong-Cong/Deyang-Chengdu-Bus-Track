@@ -62,7 +62,6 @@
 	}
 
 	.control-summary {
-		margin-top: 2%;
 		/* margin-left: 270px; */
 		width: calc(100vw) - 1050;
 		overflow: auto;
@@ -111,8 +110,8 @@
 			<span v-show="playSpeed" @click="pausePlay" class="fa fa-pause"></span><span @click="increaseSpeed" class="fa fa-forward"></span></p>
 			<v-slider class="slider" v-model="slider" :max="maxSlider" :min="minSlider" hide-details></v-slider>
 			<p v-show="Date.now() - baseTime < 90000000">{{formatTime(endTime)}} / {{formatTime(Math.round((Date.now() - baseTime) / 1000))}}</p>
-			<p>估计文庙排队人数：{{this.WMqueueNumDisplay}}</p>
-			<p>估计新都排队人数：{{this.XDqueueNumDisplay}}</p>
+			<!-- <p>估计文庙排队人数：{{this.WMqueueNumDisplay}}</p> -->
+			<!-- <p>估计新都排队人数：{{this.XDqueueNumDisplay}}</p> -->
 		</v-app>
 		<div class="control-summary" v-show="selectedItem[1][selectedItem[1].length-1]">
 			<div v-for="(item, i) in summary" v-show="i && item.data.length && selectedItem[1][item.showId[0]] && selectedItem[1][item.showId[1]]">
