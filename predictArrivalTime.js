@@ -57,6 +57,7 @@ function work() {
 		myBus.forEach(b => b.area = {a: -1, s: 0});
 	} catch (err) {
 		console.log(time + ' Get bus data error: ' + err);
+		return;
 	}
 	
 	var predictList = [];
